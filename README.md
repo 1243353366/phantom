@@ -18,6 +18,12 @@ draws, and marks the lines it cannot prove.
                         what changed over time          what is still unknown
 ```
 
+![PHANTOM graph and counter-observation graph](docs/images/phantom-graphs.png)
+
+*Left: the phantom graph from the demo corpus. Right: the counter-observation graph
+after seven simulated canary fetches. Line style encodes the class: solid is
+observed, dashed is correlated, dotted is hypothesized.*
+
 ---
 
 ## Why this exists
