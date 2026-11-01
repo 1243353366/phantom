@@ -60,6 +60,23 @@ def build(session: Session) -> dict:
     keys = [node.key for node in presences]
     edges = list(session.scalars(select(Edge)))
 
+    presence_platform = {
+        node.key: node.attrs.get("platform", "?")
+        for node in session.scalars(select(Node).where(Node.kind == "presence"))
+    }
+    identifier_kind = {
+        node.key: node.attrs.get("kind", "identifier")
+        for node in session.scalars(select(Node).where(Node.kind == "identifier"))
+    }
+    def _source_refs(edge) -> list[str]:
+        """Provenance lives on the edge's evidence rows, not on the edge itself."""
+        return sorted({row.source_ref for row in getattr(edge, "evidence", []) if row.source_ref})
+
+    identifiers_by_presence: dict[str, list] = {}
+    for edge in session.scalars(select(Edge).where(Edge.relation == "uses_identifier")):
+        identifiers_by_presence.setdefault(edge.src_key, []).append(edge)
+    handle_edges = list(session.scalars(select(Edge).where(Edge.relation == "shares_handle")))
+
     communities_by_presence: dict[str, list[str]] = {}
     labels = {node.key: node.label for node in session.scalars(select(Node).where(Node.kind == "community"))}
     for edge in session.scalars(select(Edge).where(Edge.relation == "member_of")):
@@ -80,6 +97,53 @@ def build(session: Session) -> dict:
                 and edge.relation == "shares_handle"
             }
         )
+        # What actually joins these accounts, with the evidence behind it, so a
+        # shared email is never mistaken for a reused handle.
+        evidence: list[dict] = []
+        grouped: dict[str, list] = {}
+        for key in members:
+            for edge in identifiers_by_presence.get(key, []):
+                grouped.setdefault(edge.dst_key, []).append(edge)
+        for identifier_key, edges in sorted(grouped.items()):
+            users = {presence_platform.get(edge.src_key, "?") for edge in edges}
+            if len(users) < 2:
+                continue
+            evidence.append(
+                {
+                    "rule": "R-INV-1",
+                    "kind": "identifier",
+                    "identifier_kind": identifier_kind.get(identifier_key, "identifier"),
+                    "platforms": sorted(users),
+                    "confidence": min(float(getattr(e, "confidence", 1.0) or 1.0) for e in edges),
+                    "source_refs": sorted({ref for e in edges for ref in _source_refs(e)}),
+                }
+            )
+        for edge in handle_edges:
+            if edge.src_key not in members or edge.dst_key not in members:
+                continue
+            evidence.append(
+                {
+                    "rule": "R-INV-2",
+                    "kind": "handle",
+                    "identifier_kind": "handle",
+                    "platforms": sorted(
+                        {presence_platform.get(edge.src_key, "?"), presence_platform.get(edge.dst_key, "?")}
+                    ),
+                    "confidence": float(getattr(edge, "confidence", 0.0) or 0.0),
+                    "source_refs": _source_refs(edge),
+                }
+            )
+
+        kinds = {row["kind"] for row in evidence}
+        if kinds == {"identifier", "handle"}:
+            link, link_class = "shared_identifier_and_handle", "observed+correlated"
+        elif kinds == {"identifier"}:
+            link, link_class = "shared_identifier", "observed"
+        elif kinds == {"handle"}:
+            link, link_class = "reused_handle", "correlated"
+        else:
+            link, link_class = "none", "none"
+
         communities = sorted(
             {name for key in members for name in communities_by_presence.get(key, [])}
         )
@@ -88,8 +152,18 @@ def build(session: Session) -> dict:
                 "platforms": platforms,
                 "handles": handles,
                 "accounts": len(members),
-                "stitchable": len(platforms) > 1,
+                "stitchable": len(platforms) > 1 and bool(evidence),
                 "joined_by": joining,
+                "link": link,
+                "link_class": link_class,
+                "confidence": round(min((row["confidence"] for row in evidence), default=0.0), 3),
+                "evidence": evidence,
+                "not_proof_of_ownership": (
+                    "Two accounts carrying the same identifier shows the same value "
+                    "appears on both. It does not prove one person controls them: a "
+                    "shared household address, a recycled handle or a company number "
+                    "produce identical evidence."
+                ),
                 "communities": communities,
             }
         )

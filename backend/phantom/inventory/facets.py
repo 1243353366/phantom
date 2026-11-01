@@ -44,6 +44,22 @@ DENIED_MARKERS: tuple[str, ...] = (
 
 _SEPARATORS = re.compile(r"[\s_\-]+")
 
+#: Punctuation a phone number can carry without changing which number it is.
+_PHONE_PUNCTUATION = re.compile(r"[\s()\-./\u2010-\u2015]")
+
+
+def normalise_phone(value: str) -> str:
+    """Strip punctuation and keep the leading ``+`` and every digit.
+
+    A country code is never added or removed. ``+15550100`` and ``5550100`` stay
+    distinct, because deciding they are the same number would be an inference
+    about who owns it rather than an observation of a shared value. The cost is
+    real: the same number written nationally on one platform and internationally
+    on another will not join, and the report says so rather than guessing.
+    """
+    squeezed = _PHONE_PUNCTUATION.sub("", (value or "").strip())
+    return squeezed if squeezed.startswith("+") else squeezed
+
 
 @dataclass(frozen=True)
 class Facet:
@@ -55,9 +71,18 @@ class Facet:
 
     @property
     def normalised(self) -> str:
+        """The value used for matching, so two spellings of one identifier agree.
+
+        Email is lowercased and trimmed; a handle additionally has separators
+        removed; a phone loses punctuation only. All three are the same operation
+        on every platform, which is what makes a cross-platform join mean
+        something: it is equality of a digest, not a similarity score.
+        """
         value = self.value.strip().lower()
         if self.kind == "handle":
             return _SEPARATORS.sub("", value)
+        if self.kind == "phone":
+            return normalise_phone(value)
         return value
 
 

@@ -62,7 +62,8 @@ def test_the_summary_says_what_it_cannot_see(tmp_path, monkeypatch):
     monkeypatch.setattr(attention, "log_path", lambda: tmp_path / "attention.jsonl")
     monkeypatch.setattr(attention, "budget_path", lambda: tmp_path / "budget.json")
     result = attention.summary()
-    assert "not a health measurement" in result["note"]
+    assert "not a diagnosis" in result["note"]
+    assert "not a measure of severity" in result["note"]
     assert "no screen time" in result["note"].lower()
     assert result["checks_today"] == 0
 

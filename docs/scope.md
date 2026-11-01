@@ -257,3 +257,24 @@ actually cause is its owner refreshing a surveillance dashboard. See
 **Freeze-rule note:** no displacement is recorded, because a guardrail is not a
 noun. It adds no node, edge, data source or view: it counts existing commands and
 writes one local file.
+
+## Scope freeze at 0.4.0
+
+The release scope is frozen. Six questions are answerable from local data
+(`docs/six-questions.md`), the boundaries that decide what may be joined are
+audited and pinned (`docs/reviews/2026-11-01-stitching-and-attention.md`), and the
+remaining gaps are recorded as refusals or as explicitly unmeasured questions
+rather than as TODOs that invite someone to fill them in without reconsidering
+the privacy cost.
+
+Work that would reopen the scope, and what it would need first:
+
+- **Question 2 (which sites expose me)** needs a declared list of sites the
+  operator does not own. It stays `not_measured` until someone names them.
+- **Snapchat** needs a real export sample, not a guessed layout.
+- **Connected accounts** needs a name-only reader that proves it cannot pick up a
+  member list.
+- **Device or behavioural monitoring** is refused, not deferred.
+
+Freezing here is deliberate: everything above is a decision, and a frozen refusal
+is harder to quietly reverse than an open issue.

@@ -11,6 +11,41 @@ needs its own opt-in.
 *The 0.1.0 and 0.2.0 entries were written retrospectively on 2026-11-01, from the
 commit history. Later entries are written at the time.*
 
+## [0.4.0] - 2026-11-01 — scope frozen
+
+No new surface. Boundary audit of account stitching and the attention counter,
+four defects fixed, every property pinned by a named test:
+`docs/reviews/2026-11-01-stitching-and-attention.md`.
+
+### Fixed
+- **Phone identifiers were never normalised.** `+1 (555) 010-0100` and
+  `+15550100100` hashed differently, so a phone shared between two accounts was
+  silently not matched: the identifier most likely to join accounts was the one
+  that never did. Punctuation is now removed and a country code is never inferred,
+  so national and international spellings stay apart on purpose.
+- **Cluster provenance was dropped.** The report read `Edge.source_ref`, a column
+  the writer never populates, so the source of every match was silently `None`.
+  It now reads the evidence rows.
+- **Observed and correlated links were indistinguishable.** A shared email and a
+  reused handle both produced `stitchable: true`. Clusters now carry `link`,
+  `link_class`, `confidence` and a `not_proof_of_ownership` caveat.
+- **A backwards clock erased a sitting.** Timestamp-sorted sittings reported 30
+  minutes as 0 after a clock correction. Measured in append order now, spanning
+  each sitting by its earliest and latest look.
+- **A naive timestamp crashed `phantom attention`.** Assumed UTC now; unparseable
+  lines are skipped rather than taking the command down.
+
+### Changed
+- A budget breach is described as a threshold the operator configured being
+  crossed: not a diagnosis, not a measure of severity, not evidence of a problem.
+- The attention budget day is the operator's local day, not UTC.
+- Stored phone digests change with the normalisation fix. Run
+  `phantom rebuild-graph`; raw observations are unchanged.
+
+### Frozen
+- Release scope is frozen at 0.4.0. The next work is validation against real
+  exports, not more collection surface.
+
 ## [Unreleased]
 
 ### Added

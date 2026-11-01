@@ -110,33 +110,57 @@ def entries(*, path: Path | None = None) -> list[dict]:
             continue
         try:
             row = json.loads(line)
-            rows.append(
-                {"at": dt.datetime.fromisoformat(row["at"]), "command": str(row["command"])}
-            )
+            when = dt.datetime.fromisoformat(row["at"])
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             continue
-    return sorted(rows, key=lambda row: row["at"])
+        # A hand-edited or legacy line can be naive. Assume UTC rather than
+        # comparing naive to aware, which raises and takes the whole command down.
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=dt.UTC)
+        rows.append({"at": when, "command": str(row["command"])})
+    # File order, not timestamp order: the append order is the order the operator
+    # actually worked, so a clock that jumps backwards cannot rewrite the sitting.
+    return rows
 
 
 def _streak_minutes(rows: list[dict]) -> float:
-    """Longest sitting, where a gap longer than SITTING_GAP ends it."""
+    """Longest sitting, where a gap longer than SITTING_GAP ends it.
+
+    Exactly SITTING_GAP is *not* a break: the threshold is a floor on what counts
+    as a real gap, so a check every twenty minutes for an hour remains one sitting.
+    A negative gap means the clock moved backwards; it is treated as no gap rather
+    than as a break, because a clock correction is not a break in attention.
+    """
     if not rows:
         return 0.0
     longest = 0.0
-    start = previous = rows[0]["at"]
+    low = high = previous = rows[0]["at"]
     for row in rows[1:]:
-        if row["at"] - previous > SITTING_GAP:
-            longest = max(longest, (previous - start).total_seconds() / 60)
-            start = row["at"]
-        previous = row["at"]
-    return round(max(longest, (previous - start).total_seconds() / 60), 1)
+        gap = row["at"] - previous
+        if gap < dt.timedelta(0):
+            gap = dt.timedelta(0)
+        if gap > SITTING_GAP:
+            longest = max(longest, (high - low).total_seconds() / 60)
+            low = high = row["at"]
+        else:
+            # Span the sitting by its earliest and latest look, so a clock that
+            # jumps backwards cannot shorten it.
+            low = min(low, row["at"])
+            high = max(high, row["at"])
+        previous = max(previous, row["at"])
+    return round(max(longest, (high - low).total_seconds() / 60), 1)
 
 
 def summary(*, now: dt.datetime | None = None) -> dict:
     """Today's own-command counts, a sitting length, and a nudge if over budget."""
     moment = now or dt.datetime.now(dt.UTC)
     limits = budget()
-    today = [row for row in entries() if row["at"].date() == moment.date()]
+    # The budget day is the operator's local day, not UTC: a day that resets at
+    # 03:00 local is a day nobody would recognise.
+    today = [
+        row for row in entries()
+        if row["at"].astimezone().date() == moment.astimezone().date()
+    ]
 
     counts: dict[str, int] = {}
     for row in today:
@@ -176,8 +200,10 @@ def summary(*, now: dt.datetime | None = None) -> dict:
         "nudges": nudges,
         "note": (
             "These are counts of your own commands on this machine, kept in "
-            "attention.jsonl next to your graph. They are not a health measurement, "
-            "and this module has no access to anything outside PHANTOM: no screen "
-            "time, no app usage, no other person."
+            "attention.jsonl next to your graph. A breach means a threshold you "
+            "configured was crossed. It is not a diagnosis, it is not a measure of "
+            "severity, and it does not mean there is a problem. This module has no "
+            "access to anything outside PHANTOM: no screen time, no app usage, no "
+            "other person."
         ),
     }
