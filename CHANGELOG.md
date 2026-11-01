@@ -28,11 +28,17 @@ commit history. Later entries are written at the time.*
   read for id and name, and refused outright if it carries any other column. The
   memberships become `member_of` edges (`R-INV-3`, observed) to community nodes,
   which is the findability surface rather than a social graph.
+- **Posture assessment** (`phantom posture`): the six exposure questions answered
+  in one pass over local data, each with findings, remediation actions that carry
+  what they cannot guarantee, and a `cannot_see` list. Questions that need data the
+  tool does not have report `not_measured` and say why, rather than filling the gap.
+  Question 6 (what to remove or restrict) is derived from the other five.
 - **Indexability check** (`phantom indexability`): robots.txt and noindex answered
   separately, because they are different directives. A disallowed path reports
   `unverifiable`, not "private": the crawler never fetches the page, so the
   noindex that would remove it is never read, and the URL can still be indexed.
-  Parsing follows RFC 9309, and only allowlisted hosts are reachable.
+  Parsing follows RFC 9309, and only allowlisted hosts are reachable. `--out`
+  saves a run so `phantom posture` can include it.
 
 ### Refused, in writing
 - Facebook account connections: friends, pages and groups are other people.

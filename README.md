@@ -225,6 +225,9 @@ See [`docs/shadow-trace.md`](docs/shadow-trace.md),
 [`docs/identity-separation.md`](docs/identity-separation.md) and
 [`docs/evidence-vault.md`](docs/evidence-vault.md).
 
+The six questions it answers, and the rule that keeps them pointed at you:
+[`docs/six-questions.md`](docs/six-questions.md).
+
 Your own accounts across platforms (Discord, Meta), and what already links them:
 [`docs/own-account-inventory.md`](docs/own-account-inventory.md). What this tool
 does to *your* attention, and why it refuses to measure anything else:

@@ -146,6 +146,33 @@ def cmd_enroll(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_posture(args: argparse.Namespace) -> int:
+    from phantom.exposure.posture import build
+
+    saved: list[dict] | None = None
+    if args.indexability:
+        path = Path(args.indexability).expanduser()
+        if not path.is_file():
+            print(f"{path} does not exist", file=sys.stderr)
+            return 2
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            print(f"{path} is not valid JSON: {exc}", file=sys.stderr)
+            return 2
+        if not isinstance(saved, list):
+            print(f"{path} must contain a list of indexability results", file=sys.stderr)
+            return 2
+
+    init_db()
+    session = get_session()
+    try:
+        print(json.dumps(build(session, indexability=saved), indent=2))
+    finally:
+        session.close()
+    return 0
+
+
 def cmd_inventory_platforms(args: argparse.Namespace) -> int:
     from phantom.exposure.platforms import matrix
 
@@ -199,21 +226,29 @@ def cmd_indexability(args: argparse.Namespace) -> int:
         # is fine: report what robots.txt alone establishes.
         html = None
 
-    print(
-        json.dumps(
-            as_dict(
-                verdict(
-                    url=args.url,
-                    robots_text=robots_text,
-                    robots_status=robots_status,
-                    html=html,
-                    x_robots_tag=x_robots_tag,
-                    path=path,
-                )
-            ),
-            indent=2,
+    result = as_dict(
+        verdict(
+            url=args.url,
+            robots_text=robots_text,
+            robots_status=robots_status,
+            html=html,
+            x_robots_tag=x_robots_tag,
+            path=path,
         )
     )
+    if args.out:
+        saved = Path(args.out).expanduser()
+        existing = []
+        if saved.is_file():
+            try:
+                existing = json.loads(saved.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                existing = []
+        saved.parent.mkdir(parents=True, exist_ok=True)
+        saved.write_text(
+            json.dumps([*existing, result], indent=2), encoding="utf-8"
+        )
+    print(json.dumps(result, indent=2))
     return 0
 
 
@@ -696,7 +731,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     indexability.add_argument("url", help="a URL on a domain you have allowlisted")
     indexability.add_argument("--agent", default="*", help="user-agent to evaluate")
+    indexability.add_argument(
+        "--out", help="append the result to this JSON file for phantom posture"
+    )
     indexability.set_defaults(func=cmd_indexability)
+
+    posture = sub.add_parser(
+        "posture",
+        help="the six exposure questions, answered from your own local data",
+    )
+    posture.add_argument(
+        "--indexability", help="a file written by `indexability --out` (optional)"
+    )
+    posture.set_defaults(func=cmd_posture)
 
     attention_cmd = sub.add_parser(
         "attention", help="how much this tool is drawing on you today"
