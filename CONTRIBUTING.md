@@ -33,6 +33,10 @@ cd backend && pytest -q
 The suite runs with no network access and no credentials. If a test needs either,
 it is testing the wrong thing.
 
+The CI definition lives at [`docs/ci-workflow.yml`](docs/ci-workflow.yml) rather than
+in `.github/workflows/` because pushing there requires the `workflow` OAuth scope.
+Activate it by moving the file, or by pasting it in through the GitHub web UI.
+
 ## What good changes look like
 
 - **Rules over heuristics.** A new edge rule needs an id (`R-XXX-n`), a class, a
