@@ -1,0 +1,36 @@
+From: Acme Store <billing@acme-supply.co>
+To: you@example.com
+Subject: We have a new domain
+Date: Mon, 26 Oct 2026 11:05:00 +0000
+Message-ID: <04-acme-store-rebrand@mail.example>
+Return-Path: <bounce@acme-supply.co>
+Reply-To: Acme Store <billing@acme-supply.co>
+Authentication-Results: mx.google.com; spf=pass smtp.mailfrom=acme-supply.co;
+ dkim=pass header.d=acme-supply.co; dmarc=pass header.from=acme-supply.co
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=acme-supply.co; s=k1;
+ h=from:to:subject:date; bh=fakebodyhash; b=fakesignature
+Received: from mail.acme-supply.co (mail.acme-supply.co [203.0.113.25]) by
+ mx.sendgrid.net with SMTP id m4n5o6; Mon, 26 Oct 2026 11:05:12 +0000
+List-Unsubscribe: <https://acme-supply.co/unsubscribe>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============0378810076314940190=="
+
+--===============0378810076314940190==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+This message requires an HTML capable client.
+
+--===============0378810076314940190==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+<p>New domain, same invoices.</p>
+<img src=3D"https://track.mailtrack.io/open/9f2a.gif" width=3D"1" height=3D"1=
+" alt=3D"">
+</body></html>
+
+--===============0378810076314940190==--

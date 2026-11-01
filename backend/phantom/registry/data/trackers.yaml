@@ -1,0 +1,81 @@
+# Curated identification data. Deliberately small and reviewable: every entry
+# is a claim, so every entry needs a source note.
+#
+# Fields:
+#   domain   - registrable domain, matched on self and subdomains
+#   name     - provider label
+#   category - email-analytics | adtech | cdn | esp | redirect | identity
+#   parent   - corporate parent, when publicly documented
+#   source   - where the claim comes from
+#   note     - anything a user should know before trusting the label
+entries:
+  - domain: mailtrack.io
+    name: Mailtrack
+    category: email-analytics
+    parent: null
+    source: "vendor docs"
+  - domain: mailchimp.com
+    name: Mailchimp
+    category: esp
+    parent: Intuit
+    source: "vendor docs"
+  - domain: list-manage.com
+    name: Mailchimp
+    category: esp
+    parent: Intuit
+    source: "vendor docs (Mailchimp tracking domain)"
+  - domain: sendgrid.net
+    name: SendGrid
+    category: esp
+    parent: Twilio
+    source: "vendor docs"
+  - domain: hubspotlinks.com
+    name: HubSpot
+    category: esp
+    parent: HubSpot Inc.
+    source: "vendor docs (click-tracking domain)"
+  - domain: hubspotemail.net
+    name: HubSpot
+    category: esp
+    parent: HubSpot Inc.
+    source: "vendor docs"
+  - domain: klaviyomail.com
+    name: Klaviyo
+    category: esp
+    parent: Klaviyo Inc.
+    source: "vendor docs"
+  - domain: doubleclick.net
+    name: Google Marketing Platform
+    category: adtech
+    parent: Google
+    source: "public documentation"
+  - domain: google-analytics.com
+    name: Google Analytics
+    category: adtech
+    parent: Google
+    source: "public documentation"
+  - domain: facebook.com
+    name: Meta
+    category: adtech
+    parent: Meta Platforms
+    source: "public documentation"
+  - domain: ct.pinterest.com
+    name: Pinterest
+    category: adtech
+    parent: Pinterest Inc.
+    source: "public documentation"
+  - domain: cloudfront.net
+    name: Amazon CloudFront
+    category: cdn
+    parent: Amazon
+    source: "public documentation"
+  - domain: sendibt3.com
+    name: Sendinblue / Brevo
+    category: esp
+    parent: Brevo
+    source: "vendor docs"
+  - domain: mandrillapp.com
+    name: Mandrill
+    category: esp
+    parent: Intuit
+    source: "vendor docs"

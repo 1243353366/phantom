@@ -1,0 +1,42 @@
+# PHANTOM runs on your machine. This compose file exists so "your machine"
+# can be a container you control, not a server you rent from someone.
+#
+# Note what is absent: no exposed database port, no telemetry sidecar, and the
+# data volume is a bind mount you can inspect and delete.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: phantom-api
+    ports:
+      - "127.0.0.1:8000:8000"      # loopback only, on purpose
+    environment:
+      PHANTOM_HOME: /data
+      PHANTOM_DB_URL: sqlite:////data/phantom.db
+      PHANTOM_MIRROR_BASE_URL: http://127.0.0.1:8000
+    volumes:
+      - ./data:/data
+      - ./samples:/samples:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Opt-in: only start this if you outgrow SQLite.
+  #   docker compose --profile postgres up
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: phantom
+      POSTGRES_PASSWORD: phantom
+      POSTGRES_DB: phantom
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

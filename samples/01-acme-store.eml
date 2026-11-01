@@ -1,0 +1,43 @@
+From: Acme Store <billing@acme-store.com>
+To: you@example.com
+Subject: Your September invoice
+Date: Wed, 02 Sep 2026 14:12:00 +0000
+Message-ID: <01-acme-store@mail.example>
+Return-Path: <bounce@acme-store.com>
+Reply-To: Acme Store <billing@acme-store.com>
+Authentication-Results: mx.google.com; spf=pass smtp.mailfrom=acme-store.com;
+ dkim=pass header.d=acme-store.com; dmarc=pass header.from=acme-store.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=acme-store.com; s=k1;
+ h=from:to:subject:date; bh=fakebodyhash; b=fakesignature
+Received: from mail.acme-store.com (mail.acme-store.com [203.0.113.24]) by
+ mx.list-manage.com with SMTP id a1b2c3; Wed, 2 Sep 2026 14:12:09 +0000
+Received: from mx.list-manage.com (mx.list-manage.com [198.51.100.7]) by
+ mx.google.com with SMTPS id f9e8d7; Wed, 2 Sep 2026 14:12:11 +0000
+List-Unsubscribe: <https://acme-store.com/unsubscribe>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============3241399122775339987=="
+
+--===============3241399122775339987==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+This message requires an HTML capable client.
+
+--===============3241399122775339987==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+<p>Hi there, your invoice is ready.</p>
+<p><a href=3D"https://acme-store.us1.list-manage.com/track/click?u=3D8f21&amp=
+;id=3D9ab3&amp;e=3D72f1">View invoice</a></p>
+<p><a href=3D"https://acme-store.us1.list-manage.com/track/click?u=3D8f21&amp=
+;id=3D9ab3&amp;e=3D72f1&amp;url=3Dhttps%3A%2F%2Fklaviyo.com%2Fp%2Fopen">Manag=
+e preferences</a></p>
+<img src=3D"https://acme-store.us1.list-manage.com/track/open.php?u=3D8f21&id=
+=3D9ab3c1" width=3D"1" height=3D"1" alt=3D"">
+</body></html>
+
+--===============3241399122775339987==--

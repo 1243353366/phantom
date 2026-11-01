@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phantom-privacy"
+version = "0.1.0"
+description = "Privacy intelligence and relationship mapping. Local-first, metadata-first, provenance-required."
+readme = "../README.md"
+requires-python = ">=3.11"
+license = { text = "AGPL-3.0-only" }
+keywords = ["privacy", "email", "tracking", "graph", "osint", "counterintelligence"]
+classifiers = [
+  "License :: OSI Approved :: GNU Affero General Public License v3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Security",
+]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "sqlalchemy>=2.0",
+  "networkx>=3.2",
+  "httpx>=0.26",
+  "pydantic>=2.6",
+  "pyyaml>=6.0",
+  "cryptography>=42.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.4"]
+postgres = ["psycopg[binary]>=3.1"]
+google = ["google-auth>=2.28", "google-auth-oauthlib>=1.2"]
+
+[project.scripts]
+phantom = "phantom.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["phantom*"]
+
+[tool.setuptools.package-data]
+phantom = ["registry/data/*.yaml", "selfaudit/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]

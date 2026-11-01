@@ -1,0 +1,17 @@
+# The complete list of hosts PHANTOM is permitted to contact, and why.
+# Anything absent is blocked by phantom.egress. Anything added here shows up in
+# the self-audit report, which is the point: the tool's own footprint is
+# auditable by the person running it.
+allowed:
+  - host: oauth2.googleapis.com
+    purpose: "OAuth 2.0 token exchange for the Gmail scope you granted"
+    data_sent: "client id, client secret, authorization code, refresh token"
+    data_received: "access token"
+  - host: gmail.googleapis.com
+    purpose: "Read message metadata (and HTML only if you opted into the body tier)"
+    data_sent: "access token, message ids"
+    data_received: "headers, labels, and optional HTML part"
+  - host: accounts.google.com
+    purpose: "Authorization consent screen redirect"
+    data_sent: "OAuth request parameters"
+    data_received: "authorization code"

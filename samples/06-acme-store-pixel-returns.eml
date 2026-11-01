@@ -1,0 +1,38 @@
+From: Acme Store <billing@acme-store.com>
+To: you@example.com
+Subject: Your November invoice
+Date: Fri, 30 Oct 2026 07:15:00 +0000
+Message-ID: <06-acme-store-pixel-returns@mail.example>
+Return-Path: <bounce@acme-store.com>
+Reply-To: Acme Store <billing@acme-store.com>
+Authentication-Results: mx.google.com; spf=pass smtp.mailfrom=acme-store.com;
+ dkim=pass header.d=acme-store.com; dmarc=pass header.from=acme-store.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=acme-store.com; s=k2;
+ h=from:to:subject:date; bh=fakebodyhash; b=fakesignature
+Received: from mail.acme-store.com (mail.acme-store.com [203.0.113.24]) by
+ mx.sendgrid.net with SMTP id p7q8r9; Fri, 30 Oct 2026 07:15:02 +0000
+List-Unsubscribe: <https://acme-store.com/unsubscribe>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============4799433556163516720=="
+
+--===============4799433556163516720==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+This message requires an HTML capable client.
+
+--===============4799433556163516720==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+<p>Hi there, your invoice is ready.</p>
+<p><a href=3D"https://acme-store.us1.list-manage.com/track/click?u=3D8f21&amp=
+;id=3Dbb22">View invoice</a></p>
+<img src=3D"https://acme-store.us1.list-manage.com/track/open.php?u=3D8f21&id=
+=3D9ab3c1" width=3D"1" height=3D"1" alt=3D"">
+</body></html>
+
+--===============4799433556163516720==--

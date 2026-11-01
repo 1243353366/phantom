@@ -1,0 +1,43 @@
+From: Northwind Supply <orders@northwind-supply.com>
+To: you@example.com
+Subject: Order NW-44821 shipped
+Date: Sat, 05 Sep 2026 09:03:00 +0000
+Message-ID: <02-northwind-supply@mail.example>
+Return-Path: <bounce@northwind-supply.com>
+Reply-To: Northwind Supply <orders@northwind-supply.com>
+Authentication-Results: mx.google.com; spf=pass
+ smtp.mailfrom=northwind-supply.com; dkim=pass header.d=northwind-supply.com;
+ dmarc=pass header.from=northwind-supply.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=northwind-supply.com;
+ s=k1; h=from:to:subject:date; bh=fakebodyhash; b=fakesignature
+Received: from relay.northwind-supply.com (relay.northwind-supply.com
+ [203.0.113.91]) by mx.list-manage.com with SMTP id b7c8d9; Sat, 5 Sep 2026
+ 09:03:44 +0000
+Received: from mx.list-manage.com (mx.list-manage.com [198.51.100.7]) by
+ mx.google.com with SMTPS id c1d2e3; Sat, 5 Sep 2026 09:03:46 +0000
+List-Unsubscribe: <https://northwind-supply.com/unsubscribe>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============4282407844347249203=="
+
+--===============4282407844347249203==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+This message requires an HTML capable client.
+
+--===============4282407844347249203==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+<p>Your order is on its way.</p>
+<p><a href=3D"https://northwind-supply.us1.list-manage.com/track/click?u=3D4d=
+77&amp;id=3Dc4e2&amp;e=3D9910&amp;url=3Dhttps%3A%2F%2Fnorthwind-supply.com%2F=
+orders%2FNW-44821">Track shipment</a></p>
+<img src=3D"https://northwind-supply.us1.list-manage.com/track/open.php?u=3D4=
+d77&id=3Dc4e2" width=3D"1" height=3D"1" alt=3D"">
+</body></html>
+
+--===============4282407844347249203==--

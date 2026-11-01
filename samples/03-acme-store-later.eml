@@ -1,0 +1,38 @@
+From: Acme Store <billing@acme-store.com>
+To: you@example.com
+Subject: Your October invoice
+Date: Sun, 18 Oct 2026 08:30:00 +0000
+Message-ID: <03-acme-store-later@mail.example>
+Return-Path: <bounce@acme-store.com>
+Reply-To: Acme Store <billing@acme-store.com>
+Authentication-Results: mx.google.com; spf=pass smtp.mailfrom=acme-store.com;
+ dkim=pass header.d=acme-store.com; dmarc=pass header.from=acme-store.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=acme-store.com; s=k1;
+ h=from:to:subject:date; bh=fakebodyhash; b=fakesignature
+Received: from mail.acme-store.com (mail.acme-store.com [203.0.113.24]) by
+ mx.sendgrid.net with SMTP id z9y8x7; Sun, 18 Oct 2026 08:30:02 +0000
+Received: from mx.sendgrid.net (mx.sendgrid.net [192.0.2.55]) by mx.google.com
+ with SMTPS id q1w2e3; Sun, 18 Oct 2026 08:30:04 +0000
+List-Unsubscribe: <https://acme-store.com/unsubscribe>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============4855211956484170450=="
+
+--===============4855211956484170450==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+This message requires an HTML capable client.
+
+--===============4855211956484170450==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+<p>Hi there, your invoice is ready.</p>
+<p><a href=3D"https://acme-store.us1.list-manage.com/track/click?u=3D8f21&amp=
+;id=3Daa11">View invoice</a></p>
+</body></html>
+
+--===============4855211956484170450==--
