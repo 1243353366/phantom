@@ -60,6 +60,13 @@ def build(session: Session) -> dict:
     keys = [node.key for node in presences]
     edges = list(session.scalars(select(Edge)))
 
+    communities_by_presence: dict[str, list[str]] = {}
+    labels = {node.key: node.label for node in session.scalars(select(Node).where(Node.kind == "community"))}
+    for edge in session.scalars(select(Edge).where(Edge.relation == "member_of")):
+        communities_by_presence.setdefault(edge.src_key, []).append(
+            labels.get(edge.dst_key, edge.dst_key)
+        )
+
     clusters = []
     findings = []
     for members in _cluster(keys, edges):
@@ -73,6 +80,9 @@ def build(session: Session) -> dict:
                 and edge.relation == "shares_handle"
             }
         )
+        communities = sorted(
+            {name for key in members for name in communities_by_presence.get(key, [])}
+        )
         clusters.append(
             {
                 "platforms": platforms,
@@ -80,8 +90,17 @@ def build(session: Session) -> dict:
                 "accounts": len(members),
                 "stitchable": len(platforms) > 1,
                 "joined_by": joining,
+                "communities": communities,
             }
         )
+        if communities:
+            findings.append(
+                f"Reachable through {len(communities)} community "
+                f"{'name' if len(communities) == 1 else 'names'}: "
+                f"{', '.join(communities[:5])}. Member lists are public in some "
+                "servers, and a community can name an interest or an affiliation "
+                "on its own."
+            )
         if len(platforms) > 1:
             findings.append(
                 f"{len(platforms)} accounts ({', '.join(platforms)}) are joinable "
@@ -95,6 +114,7 @@ def build(session: Session) -> dict:
         "accounts": len(presences),
         "identifiers_held": len(identifiers),
         "clusters": clusters,
+        "communities": sorted({name for names in communities_by_presence.values() for name in names}),
         "findings": findings,
         "note": (
             "Handles are matched as exact strings after removing separators. A "

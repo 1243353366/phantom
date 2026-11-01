@@ -228,7 +228,9 @@ See [`docs/shadow-trace.md`](docs/shadow-trace.md),
 Your own accounts across platforms (Discord, Meta), and what already links them:
 [`docs/own-account-inventory.md`](docs/own-account-inventory.md). What this tool
 does to *your* attention, and why it refuses to measure anything else:
-[`docs/attention-budget.md`](docs/attention-budget.md).
+[`docs/attention-budget.md`](docs/attention-budget.md). Trackers ask you not to
+crawl and separately ask search engines not to index, and conflating them keeps
+pages in results: [`docs/indexability.md`](docs/indexability.md).
 
 What the system refuses, what it cannot do, and where the risk that remains
 actually sits: [`docs/trust-boundaries.md`](docs/trust-boundaries.md). The ten

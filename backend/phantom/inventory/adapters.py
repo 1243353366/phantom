@@ -10,6 +10,8 @@ an authorised, complete, local copy.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 
@@ -21,6 +23,10 @@ from phantom.inventory.facets import (
     facet_kind,
     is_denied,
 )
+
+#: The one file in a Discord package that reports communities instead of people.
+#: Read only if it carries nothing but id and name.
+COMMUNITY_FILE = "servers/index.csv"
 
 #: Discord's data package puts account fields in one of these.
 DISCORD_ACCOUNT_FILES = ("account/user.json", "user.json", "account/user.json5")
@@ -108,6 +114,41 @@ class DiscordExport:
                     continue
                 self._collect(value, kind=kind, where=where, depth=depth + 1, facets=facets, refusals=refusals)
 
+    def _read_communities(self) -> tuple[list[Facet], list[Refusal]]:
+        """Server names the operator belongs to, and nothing about who else is in them."""
+        if not self.path.is_dir():
+            return [], []
+        target = self.path / COMMUNITY_FILE
+        if not target.is_file():
+            return [], []
+
+        rows = list(csv.reader(io.StringIO(target.read_text(encoding="utf-8", errors="replace"))))
+        if not rows:
+            return [], [Refusal(item=COMMUNITY_FILE, reason="not read: empty")]
+
+        header = [cell.strip().lower() for cell in rows[0]]
+        extra = [cell for cell in header if cell not in {"id", "name"}]
+        if extra:
+            # A members column is other people. Refuse the whole file rather than
+            # silently keeping the safe columns: partial reads hide the problem.
+            return [], [
+                Refusal(
+                    item=COMMUNITY_FILE,
+                    reason=f"not read: carries column(s) {extra} beyond id and name, "
+                    "which is other people",
+                )
+            ]
+        if "name" not in header:
+            return [], [Refusal(item=COMMUNITY_FILE, reason="not read: no name column")]
+
+        index = header.index("name")
+        facets = [
+            Facet(kind="community", value=cell, source_field=f"{COMMUNITY_FILE}:name")
+            for row in rows[1:]
+            if len(row) > index and (cell := row[index].strip())
+        ]
+        return facets, []
+
     def read(self) -> Reading:
         files, refusals = self._candidate_files()
         reading = Reading(platform=self.platform, refusals=list(refusals))
@@ -145,6 +186,15 @@ class DiscordExport:
 
             if found_any:
                 reading.files_read.append(str(file))
+
+        communities, community_refusals = self._read_communities()
+        if communities:
+            # The blanket refusal named this file by directory. It is cleared only
+            # because a reader exists that cannot carry anything but a name.
+            reading.refusals = [r for r in reading.refusals if r.item != COMMUNITY_FILE]
+            reading.facets.extend(communities)
+            reading.files_read.append(COMMUNITY_FILE)
+        reading.refusals.extend(community_refusals)
 
         if not reading.facets:
             raise ExportNotFound(
@@ -284,6 +334,41 @@ class MetaExport:
                     )
                     continue
                 self._collect(value, kind=kind, where=where, depth=depth + 1, facets=facets, refusals=refusals)
+
+    def _read_communities(self) -> tuple[list[Facet], list[Refusal]]:
+        """Server names the operator belongs to, and nothing about who else is in them."""
+        if not self.path.is_dir():
+            return [], []
+        target = self.path / COMMUNITY_FILE
+        if not target.is_file():
+            return [], []
+
+        rows = list(csv.reader(io.StringIO(target.read_text(encoding="utf-8", errors="replace"))))
+        if not rows:
+            return [], [Refusal(item=COMMUNITY_FILE, reason="not read: empty")]
+
+        header = [cell.strip().lower() for cell in rows[0]]
+        extra = [cell for cell in header if cell not in {"id", "name"}]
+        if extra:
+            # A members column is other people. Refuse the whole file rather than
+            # silently keeping the safe columns: partial reads hide the problem.
+            return [], [
+                Refusal(
+                    item=COMMUNITY_FILE,
+                    reason=f"not read: carries column(s) {extra} beyond id and name, "
+                    "which is other people",
+                )
+            ]
+        if "name" not in header:
+            return [], [Refusal(item=COMMUNITY_FILE, reason="not read: no name column")]
+
+        index = header.index("name")
+        facets = [
+            Facet(kind="community", value=cell, source_field=f"{COMMUNITY_FILE}:name")
+            for row in rows[1:]
+            if len(row) > index and (cell := row[index].strip())
+        ]
+        return facets, []
 
     def read(self) -> Reading:
         files, refusals = self._candidate_files()

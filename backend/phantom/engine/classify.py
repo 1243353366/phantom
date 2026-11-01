@@ -119,6 +119,13 @@ RULES: dict[str, Rule] = {
         Rule("R-INV-2", CORRELATED, "shares_handle",
              "Two of the operator's accounts use the same handle string.",
              HANDLE_CAVEAT),
+        Rule("R-INV-3", OBSERVED, "member_of",
+             "The operator's own account is a member of this community.",
+             "Membership is a fact about the operator's own account and a "
+             "findability fact about it: some servers publish member lists, and a "
+             "community name can be sensitive in itself (support groups, health "
+             "forums). The name is stored as text because it is what is being "
+             "mapped."),
         Rule("R-HYP-1", HYPOTHESIZED, "possible_identity_overlap",
              "Different sender domains present the same identity and infrastructure pattern.",
              CONTINUITY_CAVEAT),

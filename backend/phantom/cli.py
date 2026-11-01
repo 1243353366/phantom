@@ -146,6 +146,77 @@ def cmd_enroll(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_inventory_platforms(args: argparse.Namespace) -> int:
+    from phantom.exposure.platforms import matrix
+
+    print(json.dumps(matrix(), indent=2))
+    return 0
+
+
+def cmd_indexability(args: argparse.Namespace) -> int:
+    """Fetch robots.txt and one page, then report the two directives separately.
+
+    Only allowlisted domains are reachable, which is the point: checking your own
+    site is egress you declared in advance, and every fetch is recorded.
+    """
+    from urllib.parse import urlsplit
+
+    from phantom import egress
+    from phantom.exposure.indexability import as_dict, verdict
+
+    parts = urlsplit(args.url)
+    if parts.scheme != "https" or not parts.netloc:
+        print("indexability needs an https URL with a host", file=sys.stderr)
+        return 2
+
+    root = f"https://{parts.netloc}"
+    path = parts.path or "/"
+
+    robots_text: str | None = None
+    robots_status: int | None = None
+    try:
+        response = egress.request("GET", f"{root}/robots.txt", purpose="indexability:robots")
+        robots_status = response.status_code
+        if response.status_code < 400:
+            robots_text = response.text[:200_000]
+    except egress.EgressBlocked as exc:
+        print(
+            f"{exc}\n\nThe host must be in selfaudit/egress_allowlist.yaml before "
+            "PHANTOM will fetch it. Only declare domains you own.",
+            file=sys.stderr,
+        )
+        return 2
+
+    html: str | None = None
+    x_robots_tag: str | None = None
+    try:
+        page = egress.request("GET", args.url, purpose="indexability:page")
+        x_robots_tag = page.headers.get("x-robots-tag")
+        if page.status_code < 400:
+            html = page.text[:2_000_000]
+    except egress.EgressBlocked:
+        # The page may be outside the allowlist while the site root is not, which
+        # is fine: report what robots.txt alone establishes.
+        html = None
+
+    print(
+        json.dumps(
+            as_dict(
+                verdict(
+                    url=args.url,
+                    robots_text=robots_text,
+                    robots_status=robots_status,
+                    html=html,
+                    x_robots_tag=x_robots_tag,
+                    path=path,
+                )
+            ),
+            indent=2,
+        )
+    )
+    return 0
+
+
 def cmd_attention(args: argparse.Namespace) -> int:
     from phantom import attention
 
@@ -613,6 +684,19 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "inventory-report", help="what your own accounts already link together"
     ).set_defaults(func=cmd_inventory_report)
+
+    sub.add_parser(
+        "inventory-platforms",
+        help="what each platform can contribute, and where each item stands",
+    ).set_defaults(func=cmd_inventory_platforms)
+
+    indexability = sub.add_parser(
+        "indexability",
+        help="robots.txt and noindex answered separately for one of your URLs",
+    )
+    indexability.add_argument("url", help="a URL on a domain you have allowlisted")
+    indexability.add_argument("--agent", default="*", help="user-agent to evaluate")
+    indexability.set_defaults(func=cmd_indexability)
 
     attention_cmd = sub.add_parser(
         "attention", help="how much this tool is drawing on you today"

@@ -82,6 +82,35 @@ A shared email or phone joins two accounts *through* the identifier node, which 
 an observed fact about the operator's own account rather than an inference about
 who they are.
 
+## What each platform contributes
+
+`phantom inventory-platforms` prints the matrix straight out of
+`phantom/exposure/platforms.py`, so it cannot drift from what the code does. Each
+row carries a status:
+
+| Status | Meaning |
+| --- | --- |
+| `measured` | read today by an adapter |
+| `guarded` | in scope, blocked by an ambiguous deny marker |
+| `not_in_export` | not a fact the export contains |
+| `adapter_required` | in scope, no adapter yet |
+| `refused` | will not be built |
+
+Two rows are worth naming. **Account connections** on Facebook is refused: that
+export is friends, pages and groups, which is other people and the links to them.
+**Connected accounts** (a self-linked Steam or GitHub on your own profile) is in
+scope but `guarded`: Facebook and Discord both use the word "connections", one for
+friends and one for your own linked identities, and a name-based guard cannot tell
+them apart. It stays refused until a narrower reader exists, rather than the
+marker being loosened for both.
+
+**Server membership** is measured, with a name-only reader: `servers/index.csv` is
+read for id and name, and the whole file is refused if it carries any other
+column, because a member column is other people. Those memberships become
+`member_of` edges to community nodes, which is the findability surface: member
+lists are public in some servers, and a community name can name an interest or an
+affiliation on its own.
+
 ## Platforms
 
 Two adapters: `discord` and `meta`. Each is one class in `ADAPTERS` plus a

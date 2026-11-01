@@ -12,6 +12,7 @@ contactable address for anyone.
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ INVENTORY_PAYLOAD_KEYS = {
     "kind",
     "platform",
     "handle",
+    "communities",
     "identifiers",
     "source_fields",
     "files_read",
@@ -44,7 +46,12 @@ def _identifier_hmac(facet: Facet) -> dict:
 def to_payload(reading: Reading) -> dict:
     """Build the storable payload. Contact values never appear in it."""
     handles = [f for f in reading.facets if f.kind == "handle"]
-    identifiers = [_identifier_hmac(f) for f in reading.facets if f.kind != "handle"]
+    # A community name is public by nature and is the thing being mapped, so it is
+    # stored as text. Its sensitivity is recorded in the rule caveat instead.
+    communities = sorted({f.value for f in reading.facets if f.kind == "community"})
+    identifiers = [
+        _identifier_hmac(f) for f in reading.facets if f.kind not in {"handle", "community"}
+    ]
     # De-duplicate: the same email at two paths is one fact.
     seen: set[tuple[str, str]] = set()
     unique = []
@@ -59,6 +66,7 @@ def to_payload(reading: Reading) -> dict:
         "kind": KIND,
         "platform": reading.platform,
         "handle": handles[0].normalised if handles else "",
+        "communities": communities,
         "identifiers": unique,
         "source_fields": sorted({f.source_field for f in reading.facets}),
         "files_read": sorted(reading.files_read),
@@ -92,7 +100,14 @@ def project(session: Session) -> dict:
     engine = RelationshipEngine(session)
     stored = observations.load(session, source_kind=observations.ACCOUNT_INVENTORY)
 
-    created = {"presences": 0, "identifiers": 0, "uses_identifier": 0, "shares_handle": 0}
+    created = {
+        "presences": 0,
+        "identifiers": 0,
+        "communities": 0,
+        "uses_identifier": 0,
+        "member_of": 0,
+        "shares_handle": 0,
+    }
     presences: dict[str, dict] = {}
 
     for row in stored:
@@ -118,6 +133,26 @@ def project(session: Session) -> dict:
         )
         created["presences"] += 1
         presences[presence_key] = {"platform": platform, "handle": handle}
+
+        for name in payload.get("communities", []):
+            community_key = "community:" + re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            engine._node(community_key, "community", name, {"platform": platform})
+            created["communities"] += 1
+            engine._edge(
+                "R-INV-3",
+                presence_key,
+                community_key,
+                evidence_kind="account_export",
+                detail=(
+                    f"The operator's own {platform} export lists this community. "
+                    "Membership is a fact about their own account, and a "
+                    "findability fact about it."
+                ),
+                source_ref=f"{row.source_ref}:community:{community_key}",
+                payload={"platform": platform},
+                base_confidence=0.85,
+            )
+            created["member_of"] += 1
 
         for identifier in payload.get("identifiers", []):
             id_key = f"identifier:{identifier['kind']}:{identifier['hmac'][:24]}"

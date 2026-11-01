@@ -47,7 +47,9 @@ def test_a_quiet_day_gets_no_nudge(tmp_path, monkeypatch):
 def test_a_sitting_is_measured_and_a_gap_ends_it(tmp_path, monkeypatch):
     monkeypatch.setattr(attention, "log_path", lambda: tmp_path / "attention.jsonl")
     monkeypatch.setattr(attention, "budget_path", lambda: tmp_path / "budget.json")
-    base = dt.datetime.now(dt.UTC)
+    # Anchored to 09:00 UTC so the four hour jump cannot cross midnight and be
+    # filtered out as "not today".
+    base = dt.datetime.now(dt.UTC).replace(hour=9, minute=0, second=0, microsecond=0)
     for minutes in (0, 20, 40):
         attention.record("graph", at=base + dt.timedelta(minutes=minutes))
     # A four hour gap means the afternoon is a separate sitting, not one long one.

@@ -20,7 +20,22 @@ commit history. Later entries are written at the time.*
   no screen time, no app usage, no other person. A guardrail, not a data source,
   so it adds no node, edge or view to the graph.
 
+- **Platform contribution matrix** (`phantom inventory-platforms`): what each
+  platform can contribute, generated from code so it cannot drift from what the
+  adapters actually read. Each row is measured, guarded, not_in_export,
+  adapter_required or refused, and the refusals say why.
+- **Discord server membership**, by a name-only reader: `servers/index.csv` is
+  read for id and name, and refused outright if it carries any other column. The
+  memberships become `member_of` edges (`R-INV-3`, observed) to community nodes,
+  which is the findability surface rather than a social graph.
+- **Indexability check** (`phantom indexability`): robots.txt and noindex answered
+  separately, because they are different directives. A disallowed path reports
+  `unverifiable`, not "private": the crawler never fetches the page, so the
+  noindex that would remove it is never read, and the URL can still be indexed.
+  Parsing follows RFC 9309, and only allowlisted hosts are reachable.
+
 ### Refused, in writing
+- Facebook account connections: friends, pages and groups are other people.
 - Device and behavioural monitoring for "excessive use" or doomscrolling. The
   only way to get that data is telemetry that observes behaviour, and a token that
   labels a person's usage unhealthy is a clinical claim this evidence model cannot

@@ -60,13 +60,26 @@ def test_other_people_in_the_package_are_never_opened(tmp_path):
     reading = DiscordExport(package).read()
     refused = [r.item for r in reading.refusals]
     assert "messages/index.csv" in refused
-    assert "servers/index.csv" in refused
+    # The servers file carries communities, which are the operator's own, so it is
+    # read by a name-only reader and its blanket refusal is cleared.
+    assert "servers/index.csv" not in refused
+    assert [f.value for f in reading.facets if f.kind == "community"] == ["a server"]
+
+
+def test_a_member_column_makes_the_servers_file_unreadable(tmp_path):
+    package = _package(tmp_path, extra_files={
+        "servers/index.csv": "id,name,members\n1,a server,\"someone,someone-else\"\n",
+    })
+    reading = DiscordExport(package).read()
+    assert any("members" in r.reason for r in reading.refusals)
+    assert all(f.kind != "community" for f in reading.facets)
 
 
 def test_the_sample_package_reads_only_the_operator(tmp_path):
     reading = DiscordExport(SAMPLES / "discord").read()
     kinds = sorted({f.kind for f in reading.facets})
-    assert kinds == ["account_id", "email", "handle", "phone"]
+    # community joins the list because servers/index.csv is now read, name only.
+    assert kinds == ["account_id", "community", "email", "handle", "phone"]
     assert any("friends" in r.item for r in reading.refusals)
 
 
