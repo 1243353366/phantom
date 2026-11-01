@@ -1,0 +1,96 @@
+# Scope
+
+*This document exists to stop PHANTOM from becoming six products.*
+
+## The one product
+
+PHANTOM answers a single question:
+
+> **Which organisations and pieces of infrastructure are in a position to observe
+> this person's email, and what is the evidence for each claim?**
+
+Everything in this repo either serves that sentence or is frozen. If a feature cannot
+be described as an improvement to that sentence, it belongs in the second list.
+
+## The core loop
+
+The only workflow that receives new work:
+
+1. Ingest authorised message **metadata** (headers, embedded URLs).
+2. Identify infrastructure through the tracker registry.
+3. Write an edge that cannot exist without its evidence.
+4. Render it with the classification and caveat visible.
+5. Record what stopped appearing, as an observation.
+
+Five steps. Anything that does not shorten, harden or explain one of those five is
+out of scope by default.
+
+## Kept, and actively developed
+
+| Component | Why it is core |
+| --- | --- |
+| `collector/` | Step 1. Without it there is nothing to map. |
+| `registry/` | Step 2. A wrong registry entry produces a wrong claim. |
+| `engine/` | Step 3. This is the product's whole credibility. |
+| `engine/graph.py`, `frontend/` | Step 4. Uncertainty that is not visible is not there. |
+| `watchdog/` | Step 5. The only thing here that gets better with age. |
+
+## Kept, frozen
+
+Working, tested, and closed to new features. Bug fixes only.
+
+| Component | Frozen at | The rule |
+| --- | --- | --- |
+| `consent/` | v0.1 | Enrolment, receipt, revocation. No new channels, no new fields. |
+| `selfaudit/` | v0.1 | Must keep running on every release. No new audit dimensions. |
+| `exposure/` | v0.1 | A local report returned to the requester. Never a graph edge, never stored. |
+| `mirror/` (counter-observation) | v0.1 | No new detection, no new signals, no tarpit changes. |
+| `shadow/` (ShadowTrace, MirrorLock, vault) | v0.2 | No new event kinds, no new rules, no new correlation math. |
+
+Layer 3 is complete. It has four event kinds, four rules, one sealed chain and one
+human-confirmed bridge path, and that is the whole of it. The temptation to add a
+fifth event kind is the specific thing this document is here to refuse.
+
+## Out of scope
+
+Not "later". Out.
+
+- A second mailbox provider (Outlook, IMAP, Exchange).
+- Any hosted, multi-tenant or "sign in with" version.
+- Real-time alerting, push, or anything that creates an obligation to watch.
+- A mobile app.
+- A browser extension.
+- Any people graph, contact graph, or "who knows whom".
+- Any attribution: naming a person, an operator, or an employer behind infrastructure.
+- Any third-party enrichment API, reputation feed or breach lookup.
+- Any active probing of a third party, ever, under any framing.
+
+Each of these is individually reasonable and collectively fatal. A privacy tool that
+becomes a platform stops being auditable by the one person whose data it holds.
+
+## The freeze rule
+
+> A bug fix means **it is broken**, or **it produces a false claim**.
+
+Anything else that adds a noun (a new event kind, a new source, a new node type, a new
+report) is a product decision. Product decisions must displace something already in
+the "kept" list, in writing, before any code is written. If nothing is displaced, the
+answer is no.
+
+## What v1.0 actually means
+
+Not a feature list. One test:
+
+> Ninety days of one real mailbox, ingested through the metadata scope, producing a
+> graph where every edge opens to its evidence and a report the owner would send to
+> another person.
+
+The demo corpus is a fixture, not a use case. Until a real mailbox produces a report
+someone would actually forward, every additional module is decoration.
+
+## Why this is written down
+
+Because the failure mode is not a bad decision, it is a series of reasonable ones.
+Six modules at v0.1 became nine at v0.2, and none of that growth came from a user
+asking for it. Growth in module count is not growth in usefulness, and the only
+reliable defence is a boundary that predates the temptation.

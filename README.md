@@ -22,7 +22,8 @@ draws, and marks the lines it cannot prove.
 
 *Left: the phantom graph from the demo corpus. Right: the counter-observation graph
 after seven simulated canary fetches. Line style encodes the class: solid is
-observed, dashed is correlated, dotted is hypothesized.*
+observed, dashed is correlated, dotted is hypothesized. There is a third layer now;
+see [`docs/shadow-trace.md`](docs/shadow-trace.md).*
 
 ---
 
@@ -44,7 +45,32 @@ Most tools stop at "3 trackers blocked". PHANTOM answers the harder questions:
 
 ---
 
-## The five ideas
+## Scope
+
+One product: **which organisations and infrastructure can observe this person's
+email, and what is the evidence for each claim.** Six modules at v0.1 became nine at
+v0.2, and none of that came from a user asking for it. Growth in module count is not
+growth in usefulness, so the boundary is written down and enforced by a freeze rule:
+bug fixes are allowed everywhere, new nouns are not. See [`docs/scope.md`](docs/scope.md).
+
+## Three layers
+
+PHANTOM holds three kinds of relationship at once, in three node namespaces that do
+not collapse into each other:
+
+| Layer | Question | Joined by |
+| --- | --- | --- |
+| **1 · Surveillance** | Who is positioned to observe you? | ordinary message evidence |
+| **2 · Relationship** | Who do you actually talk to? | never becomes an edge; local report only |
+| **3 · Adversarial** | What tried to reach what you protect? | only a human-confirmed bridge |
+
+The interesting part is the intersections, and the discipline is refusing to read
+them as identity. Layer 3 shares node keys with the counter-observation module, so a
+canary fetch and a refused decryption request from the same origin land on the same
+node. What it never does is decide that a shared observable means a shared operator.
+That join requires a person, a written rationale, and an explicit decision.
+
+## The ideas
 
 | # | Idea | Where it lives |
 | --- | --- | --- |
@@ -159,6 +185,46 @@ reveal. The graph holds canaries, origins, client stacks and networks. There is 
 person at any node, and a test asserts that too. See
 [`docs/counter-observation.md`](docs/counter-observation.md).
 
+### 7. ShadowTrace, MirrorLock and the evidence vault
+
+Layer 3 records interactions with infrastructure you control, and keeps them
+verifiable:
+
+```console
+$ phantom shadow-demo
+layer 3 events: 8  {'decoy_access': 4, 'protected_data_request': 3, 'payload_quarantined': 1}
+outcomes: {'observed': 4, 'denied': 2, 'granted': 1, 'quarantined': 1}
+  touched: decoy:pitch-deck v3              events=2 ['observed']
+  touched: vault:fe435ee2…                  events=2 ['denied']
+  touched: payload:bbe38aaf…                events=1 ['quarantined']
+
+recurring indicators: 4
+co-occurrence candidates: 3 (hypothesized, capped)
+quarantined payloads: 1 (executed: False)
+vault: intact (8 records)
+automatic layer merges: 0
+```
+
+- **MirrorLock** encrypts protected objects against the local key and brokers every
+  decryption request. Denial is the default. A refusal is recorded either way, because
+  a refusal is the most informative event in the layer and the easiest one to lose.
+- **The evidence vault** is an append-only hash chain. Each record commits to its
+  predecessor and is sealed with a key that never leaves the machine, so editing,
+  deleting or reordering history is detectable: `phantom vault-verify`.
+- **Payload quarantine** keeps a suspicious sample encrypted and unopened. Never
+  executed, never unpacked, never rendered.
+- **Anything credential-shaped is refused.** A request carrying `password=…` is stored
+  with the secret replaced, and the tests assert it never reaches the database.
+
+The rule that makes this credible rather than alarming: **a refusal is not an
+accusation.** An expired grant and a hostile probe produce the same row, the report
+says so next to the count, and every event is stored with its innocent explanations
+attached.
+
+See [`docs/shadow-trace.md`](docs/shadow-trace.md),
+[`docs/identity-separation.md`](docs/identity-separation.md) and
+[`docs/evidence-vault.md`](docs/evidence-vault.md).
+
 ---
 
 ## Quickstart
@@ -171,6 +237,8 @@ pip install -e "backend[dev]"
 # Run the whole pipeline over the synthetic sample corpus.
 phantom demo          # email graph, negative space, self-audit
 phantom mirror-demo   # counter-observation graph
+phantom shadow-demo   # layer 3: decoys, refusals, quarantine, hash chain
+phantom vault-verify  # recompute the evidence chain
 ```
 
 `phantom demo` ingests `samples/*.eml`, builds the graph, runs the negative-space
@@ -229,6 +297,9 @@ Six components, deliberately separable so the risky parts can be omitted:
 | **Exposure Analyzer** | Local-only contact intersection analysis | `exposure/` |
 | **Temporal Watchdog** | Historical change and negative space | `watchdog/` |
 | **Counter-observation** | Canaries, attempt fingerprinting, counter-graph | `mirror/` |
+| **ShadowTrace** | Layer 3 adversarial events, recurrence, temporal proximity | `shadow/` |
+| **MirrorLock** | Cryptographic protection with a deny-by-default broker | `shadow/mirrorlock.py` |
+| **Evidence Vault** | Append-only sealed event chain | `shadow/vault.py` |
 
 Plus one that is not on the original list and should be:
 **Self-audit** (`selfaudit/`), which keeps the other six accountable.
@@ -285,6 +356,10 @@ See [`SECURITY.md`](SECURITY.md) and [`docs/threat-model.md`](docs/threat-model.
 | [`docs/ethics.md`](docs/ethics.md) | The line between privacy tools and people-tracking |
 | [`docs/consent.md`](docs/consent.md) | The consent flow, field by field |
 | [`docs/counter-observation.md`](docs/counter-observation.md) | Canaries, the asymmetry, and the passive-only line |
+| [`docs/scope.md`](docs/scope.md) | The one product, the frozen list, and the freeze rule |
+| [`docs/shadow-trace.md`](docs/shadow-trace.md) | Layer 3: what gets recorded and what it may never say |
+| [`docs/identity-separation.md`](docs/identity-separation.md) | Why the layers cannot merge, enforced in code |
+| [`docs/evidence-vault.md`](docs/evidence-vault.md) | The hash chain, and what it cannot prove |
 | [`docs/roadmap.md`](docs/roadmap.md) | What is built, what is next |
 
 ---
@@ -298,6 +373,10 @@ See [`SECURITY.md`](SECURITY.md) and [`docs/threat-model.md`](docs/threat-model.
   that two companies are secretly the same company.
 - Not an offensive tool. The canary endpoint writes a row and returns a pixel.
   Nothing is sent back to the requester, and no code path could do so.
+- Not an attribution engine. It will not tell you that a tracker and a sender are
+  the same party. It will show you the shared observable and refuse the inference.
+- Not a participant. It never probes, follows, or queries a third party about
+  anything that touched it.
 - Not finished. See the roadmap; the honest status is "working MVP, single data
   source, small registry".
 
