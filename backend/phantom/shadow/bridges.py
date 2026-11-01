@@ -24,7 +24,7 @@ RULE = "R-SHD-4"
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def _node(session: Session, key: str) -> Node:

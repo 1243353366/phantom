@@ -32,8 +32,8 @@ GENESIS = "0" * 64
 def _iso(value: dt.datetime) -> str:
     """Canonical UTC timestamp. Naive values from SQLite are treated as UTC."""
     if value.tzinfo is None:
-        value = value.replace(tzinfo=dt.timezone.utc)
-    return value.astimezone(dt.timezone.utc).replace(microsecond=value.microsecond).isoformat()
+        value = value.replace(tzinfo=dt.UTC)
+    return value.astimezone(dt.UTC).replace(microsecond=value.microsecond).isoformat()
 
 
 def _seal(prev_hash: str, event_hash: str, kind: str, subject_ref: str, occurred_at: dt.datetime) -> str:

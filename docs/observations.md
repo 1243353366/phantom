@@ -69,22 +69,32 @@ endpoint no longer exists is reported as skipped rather than resurrected.
 Rejected proposals stay rejected. A rebuild never produces a cross-layer edge that
 a human did not confirm: `test_rebuild_gives_no_one_a_way_to_launder_a_bridge`.
 
-## Two derivation passes, found by building this
+## Four derivation sources, both found by running this
 
-The first rebuild lost two edges out of nineteen. The cause was not the
-observations: correlation (`R-COR-1`, `R-HYP-*`) is a **global** pass over the whole
-graph, not a per-observation one, so a replay that only calls `project()` silently
-drops every correlated and hypothesized edge.
+The rebuild lost edges twice before it lost none, and neither loss was visible from
+reading the code.
 
-That is the value of the exercise. The rebuild is now the pipeline, in order:
+**First:** two edges out of nineteen. Correlation (`R-COR-1`, `R-HYP-*`) is a
+*global* pass over the whole graph, not a per-observation one, so a replay that only
+calls `project()` silently drops every correlated and hypothesized edge.
 
-1. replay each observation through `project()`
+**Second:** twenty-one edges, all `R-MIR-*`. The counter-observation graph is
+projected from canary hits, and the replay never called it. The entire
+counter-observation layer disappeared, which is a particularly bad thing for a tool
+whose stated job is to notice when something stops being observable.
+
+That is the value of the exercise, and the reason the CI gate exists rather than a
+note in a document. The replay is now the pipeline, in order:
+
+1. replay each mail observation through `project()`
 2. run `correlate()` once over the result
-3. project Layer 3 events
-4. reapply confirmed bridges
+3. project counter-observation (`mirror.countergraph.build`)
+4. project Layer 3 events
+5. reapply confirmed bridges
 
-If a fifth step is ever added, it has to be added here too, or `reproduced` will
-say `no` and the divergence becomes visible instead of silent.
+If a sixth step is ever added, it has to be added here too, or `reproduced` will say
+`no`. `tests/test_observations.py` pins the two regressions and CI fails on the
+output of `phantom rebuild-graph`, so the omission cannot come back quietly.
 
 ## What this does and does not give you
 

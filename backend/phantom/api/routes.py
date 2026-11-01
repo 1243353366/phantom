@@ -61,8 +61,8 @@ def ingest_eml(body: IngestRequest, session: Session = Depends(db)) -> dict:
             for p in mail.pixels
         ],
         "redirectors": [
-            {"host": l.host, "target": l.target_host, "reasons": l.reasons}
-            for l in mail.links if l.is_redirector
+            {"host": link.host, "target": link.target_host, "reasons": link.reasons}
+            for link in mail.links if link.is_redirector
         ],
         "dmarc": result["dmarc"],
     }

@@ -61,8 +61,8 @@ def _iso(value: dt.datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        value = value.replace(tzinfo=dt.timezone.utc)
-    return value.astimezone(dt.timezone.utc).isoformat()
+        value = value.replace(tzinfo=dt.UTC)
+    return value.astimezone(dt.UTC).isoformat()
 
 
 def to_payload(mail: ParsedEmail) -> dict:
@@ -141,7 +141,7 @@ def store(
     row = RawObservation(
         source_kind=source_kind,
         source_ref=source_ref,
-        observed_at=observed_at or dt.datetime.now(dt.timezone.utc),
+        observed_at=observed_at or dt.datetime.now(dt.UTC),
         schema_version=payload.get("schema", SCHEMA_VERSION),
         payload=payload,
         payload_hash=payload_hash,

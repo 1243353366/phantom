@@ -17,7 +17,7 @@ from phantom.shadow.models import BridgeProposal, QuarantinedPayload, ShadowEven
 
 
 def _aware(value: dt.datetime) -> dt.datetime:
-    return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=dt.UTC)
 
 
 def adversarial_report(session: Session) -> dict:

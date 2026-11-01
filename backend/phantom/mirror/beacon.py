@@ -15,7 +15,6 @@ Design constraints, each of which is a test:
 from __future__ import annotations
 
 import datetime as dt
-
 from pathlib import Path
 
 from sqlalchemy import select
@@ -74,7 +73,7 @@ def record_observation(
 
     observation = MirrorObservation(
         token_id=row.id,
-        received_at=received_at or dt.datetime.now(dt.timezone.utc),
+        received_at=received_at or dt.datetime.now(dt.UTC),
         origin_hmac=fp.origin_hmac,
         origin_raw=fp.origin_raw,
         asn=fp.asn,
@@ -108,11 +107,11 @@ def observations_for(session: Session, token: str) -> list[MirrorObservation]:
 
 def purge_expired(session: Session) -> int:
     """Retention. Canary hits are the most sensitive rows PHANTOM holds."""
-    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=settings.mirror_retention_days)
+    cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(days=settings.mirror_retention_days)
     stale = [
         row
         for row in session.scalars(select(MirrorObservation))
-        if (row.received_at if row.received_at.tzinfo else row.received_at.replace(tzinfo=dt.timezone.utc)) < cutoff
+        if (row.received_at if row.received_at.tzinfo else row.received_at.replace(tzinfo=dt.UTC)) < cutoff
     ]
     for row in stale:
         session.delete(row)

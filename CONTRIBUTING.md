@@ -33,9 +33,20 @@ cd backend && pytest -q
 The suite runs with no network access and no credentials. If a test needs either,
 it is testing the wrong thing.
 
-The CI definition lives at [`docs/ci-workflow.yml`](docs/ci-workflow.yml) rather than
-in `.github/workflows/` because pushing there requires the `workflow` OAuth scope.
-Activate it by moving the file, or by pasting it in through the GitHub web UI.
+CI runs on every push to `main` and every pull request
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). Two jobs, and the second is
+the project's actual contract:
+
+- **backend**: lint, 132 tests on Python 3.11 and 3.12, then the demo pipeline.
+- **frontend**: type-check and build.
+
+The invariants are not style. The build fails if an edge exists without provenance, if
+a hypothesis claims more than 0.65 confidence, if the evidence chain does not verify,
+if the layers merge without a human, if retaliation or active probing becomes
+reachable, or if `phantom rebuild-graph` cannot reproduce the graph from its
+observations. Two of those were caught by writing them down: the package could not be
+installed at all (`readme = "../README.md"` pointed outside the package), and the first
+rebuild silently lost every correlated edge.
 
 ## What good changes look like
 

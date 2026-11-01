@@ -12,8 +12,8 @@ across the EU), it is indistinguishable from attacking an innocent third party
 whose host was compromised to do the scraping, and it would make PHANTOM the
 thing it exists to expose.
 """
-from phantom.mirror.tokens import CanaryToken, mint, verify
 from phantom.mirror.fingerprint import AttemptFingerprint, fingerprint
+from phantom.mirror.tokens import CanaryToken, mint, verify
 
 #: Hard-coded, not configurable. If this ever needs to change, the change is a
 #: fork, not a setting.

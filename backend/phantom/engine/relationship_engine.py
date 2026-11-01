@@ -27,7 +27,7 @@ LEGAL_SUFFIX = re.compile(
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def _hash(text: str) -> str:
@@ -232,7 +232,10 @@ class RelationshipEngine:
                     observed_at=at,
                 )
 
-            for domain in dict.fromkeys(mail.reply_to_domains + ([mail.return_path_domain] if mail.return_path_domain else [])):
+            routing_domains = list(mail.reply_to_domains)
+            if mail.return_path_domain:
+                routing_domains.append(mail.return_path_domain)
+            for domain in dict.fromkeys(routing_domains):
                 if domain == mail.from_domain:
                     continue
                 self._node(f"domain:{domain}", "domain", domain, {"role": "routing"})

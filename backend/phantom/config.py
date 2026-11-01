@@ -5,7 +5,6 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 DEFAULT_HOME = Path(os.environ.get("PHANTOM_HOME", "~/.phantom")).expanduser()
 
 

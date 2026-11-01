@@ -58,7 +58,7 @@ def mint(session: Session, label: str, *, note: str = "") -> CanaryToken:
             signature=_sign(token),
             label=label,
             note=note,
-            created_at=dt.datetime.now(dt.timezone.utc),
+            created_at=dt.datetime.now(dt.UTC),
         )
     )
     session.commit()
@@ -85,7 +85,7 @@ def revoke(session: Session, token: str) -> bool:
     row = session.scalar(select(CanaryTokenRow).where(CanaryTokenRow.token == token))
     if row is None:
         return False
-    row.revoked_at = dt.datetime.now(dt.timezone.utc)
+    row.revoked_at = dt.datetime.now(dt.UTC)
     session.commit()
     return True
 

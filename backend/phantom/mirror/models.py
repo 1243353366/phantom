@@ -21,7 +21,7 @@ def _uuid() -> str:
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 class CanaryToken(Base):

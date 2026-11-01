@@ -42,7 +42,7 @@ def _host_allowed(host: str) -> dict | None:
 
 def _record(url: str, purpose: str, allowed: bool) -> None:
     line = {
-        "at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "at": dt.datetime.now(dt.UTC).isoformat(),
         "url": url,
         "purpose": purpose,
         "allowed": allowed,

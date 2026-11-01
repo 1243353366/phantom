@@ -12,7 +12,7 @@ def render_markdown(graph: dict, negative: dict, audit: dict) -> str:
     lines = [
         "# PHANTOM observation report",
         "",
-        f"Generated {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M UTC} from authorised "
+        f"Generated {dt.datetime.now(dt.UTC):%Y-%m-%d %H:%M UTC} from authorised "
         "message metadata only.",
         "",
         "## Graph",

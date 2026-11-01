@@ -16,6 +16,7 @@ from phantom.api.routes import router
 from phantom.api.shadow_routes import router as shadow_router
 from phantom.db import init_db
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()

@@ -19,16 +19,14 @@ or delete your mail.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
 from phantom import egress
 from phantom.collector.headers import ParsedEmail, parse_eml
-from phantom.config import settings
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-TOKEN_URL = "https://oauth2.googleapis.com/token"
+TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105 - an endpoint, not a secret
 API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 METADATA_SCOPE = "https://www.googleapis.com/auth/gmail.metadata"
@@ -71,7 +69,6 @@ def authorization_url(*, client_id: str, redirect_uri: str, state: str,
 def exchange_code(*, client_id: str, client_secret: str, code: str,
                   redirect_uri: str) -> GmailSession:
     """Swap the authorization code for tokens, then drop the code."""
-    import httpx
 
     allowlisted = _assert_allowlisted(TOKEN_URL)
     if not allowlisted:  # pragma: no cover - defensive

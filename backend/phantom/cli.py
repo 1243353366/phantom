@@ -14,10 +14,10 @@ import json
 import sys
 from pathlib import Path
 
+from phantom.collector.headers import parse_eml
 from phantom.db import get_session, init_db
 from phantom.engine.graph import to_cytoscape
 from phantom.engine.relationship_engine import RelationshipEngine
-from phantom.collector.headers import parse_eml
 
 
 def _ingest_files(session, paths: list[Path]) -> list[dict]:
@@ -372,7 +372,7 @@ def cmd_rebuild_graph(args: argparse.Namespace) -> int:
     session.close()
 
     before, after = result["before"], result["after"]
-    print(f"observations replayed: {result['observations_replayed']}")
+    print(f"mail observations replayed: {result['observations_replayed']}")
     print(f"nodes  {before['nodes']:>4} -> {after['nodes']}")
     print(f"edges  {before['edges']:>4} -> {after['edges']}")
     print(f"evidence rows      {after['evidence']}")

@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from phantom import observations
 from phantom.engine import classify
 from phantom.engine.relationship_engine import RelationshipEngine
+from phantom.mirror import countergraph
 from phantom.models import Edge, Evidence, Node
 from phantom.shadow import bridges
 from phantom.shadow import graph as shadow_graph
@@ -86,6 +87,12 @@ def rebuild(session: Session) -> dict:
     correlated = engine.correlate()
     session.commit()
 
+    # Four derivation sources, in order, and the list is the pipeline. Two of them
+    # were found to be missing by running this, not by reading it: the correlation
+    # pass and the counter-observation projection.
+    mirror = countergraph.build(session)
+    session.commit()
+
     shadow = shadow_graph.project(session)
     restored = bridges.reapply(session)
 
@@ -95,6 +102,7 @@ def rebuild(session: Session) -> dict:
     return {
         "observations_replayed": len(stored),
         "correlation_passes": correlated,
+        "counter_edges": mirror.get("edges", 0),
         "layer3_edges": shadow.get("recurrence_edges", 0) + shadow.get("co_occurrence_edges", 0),
         "bridges_restored": restored,
         "rules_digest": rules_before,

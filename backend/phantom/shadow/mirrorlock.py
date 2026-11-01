@@ -23,7 +23,7 @@ from phantom.shadow.models import AccessGrant, ProtectedBlob
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def _as_bytes(value: bytes | str) -> bytes:
@@ -79,7 +79,7 @@ def _live_grant(session: Session, blob_id: str) -> AccessGrant | None:
     ):
         expires = row.expires_at
         if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=dt.timezone.utc)
+            expires = expires.replace(tzinfo=dt.UTC)
         if expires > now:
             return row
     return None

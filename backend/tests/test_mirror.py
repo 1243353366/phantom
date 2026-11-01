@@ -1,7 +1,6 @@
 """Counter-observation: the useful part, and the limits that make it defensible."""
 from __future__ import annotations
 
-import ipaddress
 from pathlib import Path
 
 import pytest

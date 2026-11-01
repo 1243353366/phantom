@@ -1,14 +1,10 @@
 # PHANTOM CI
 #
-# This file sits at docs/ci-workflow.yml rather than .github/workflows/ci.yml
-# because pushing into .github/workflows requires the GitHub OAuth `workflow`
-# scope, which the publishing connection does not hold. The definition is
-# complete and unmodified; only its location is provisional.
-#
-# To activate it, either:
-#   git mv docs/ci-workflow.yml .github/workflows/ci.yml   (with `workflow` scope)
-# or paste it into .github/workflows/ci.yml through the GitHub web UI, which
-# needs no token scope at all.
+# Two jobs, and the second one is the point. Tests can pass while the project's
+# promises quietly stop being true, so the invariants job fails the build on the
+# promises themselves: no unaudited egress, no retaliation, no over-claimed
+# hypothesis, no silent layer merge, no unverifiable evidence chain, and a graph
+# that can still be re-derived from its observations.
 name: ci
 
 on:
@@ -43,16 +39,15 @@ jobs:
           python -m phantom.cli shadow-demo --out ../out
           python -m phantom.cli vault-verify
 
-      # These invariants are the project's promises. Fail the build, not the review.
       - name: Invariants
         run: |
           cd backend
           python - <<'PY'
-          import json, pathlib, sys
+          import json
+          import pathlib
 
-          report = json.loads(pathlib.Path("../out/report.md").exists() and
-                              pathlib.Path("../out/selfaudit.json").read_text() or "{}")
-          assert report.get("unmediated_egress_found") == 0, "an unaudited egress path exists"
+          audit = json.loads(pathlib.Path("../out/selfaudit.json").read_text())
+          assert audit["unmediated_egress_found"] == 0, "an unaudited egress path exists"
 
           counter = json.loads(pathlib.Path("../out/counter-report.json").read_text())
           assert counter["guardrails"]["retaliation_enabled"] is False
@@ -68,13 +63,11 @@ jobs:
 
           shadow = json.loads(pathlib.Path("../out/shadow-report.json").read_text())
           assert shadow["vault"]["ok"] is True, "evidence chain does not verify"
-          g = shadow["guardrails"]
-          assert g["automatic_layer_merges"] == 0, "the layers merged without a human"
-          assert g["active_probing_of_third_parties"] is False
-          assert g["recovered_credentials_stored"] is False
-          assert g["quarantined_payloads_executed"] is False
-          for event in shadow["protected_objects_touched"]:
-              pass  # every event carries alt_explanations; enforced at write time
+          guardrails = shadow["guardrails"]
+          assert guardrails["automatic_layer_merges"] == 0, "the layers merged without a human"
+          assert guardrails["active_probing_of_third_parties"] is False
+          assert guardrails["recovered_credentials_stored"] is False
+          assert guardrails["quarantined_payloads_executed"] is False
 
           view = json.loads(pathlib.Path("../out/shadow-graph.json").read_text())
           assert view["separation"]["automatic_merges"] == 0
@@ -83,8 +76,18 @@ jobs:
               if data.get("cross_layer"):
                   assert data["classification"] == "hypothesized"
                   assert data["confidence"] <= 0.65
+                  assert data["evidence_count"] >= 1
           print("invariants hold")
           PY
+
+      # The graph is a set of claims. If they cannot be re-derived from the
+      # observations that produced them, someone is looking at conclusions whose
+      # reasoning no longer exists.
+      - name: Graph must be re-derivable
+        run: |
+          cd backend
+          python -m phantom.cli rebuild-graph | tee rebuild.txt
+          grep -q "graph reproduced:  yes" rebuild.txt
 
   frontend:
     runs-on: ubuntu-latest

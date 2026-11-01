@@ -104,10 +104,10 @@ def event_fingerprint(payload: dict) -> str:
 
 def _aware(value: dt.datetime | None) -> dt.datetime:
     if value is None:
-        return dt.datetime.now(dt.timezone.utc)
+        return dt.datetime.now(dt.UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=dt.timezone.utc)
-    return value.astimezone(dt.timezone.utc)
+        return value.replace(tzinfo=dt.UTC)
+    return value.astimezone(dt.UTC)
 
 
 def record(

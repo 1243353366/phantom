@@ -15,9 +15,9 @@ from phantom.collector.headers import parse_eml
 from phantom.engine import classify
 from phantom.engine.relationship_engine import RelationshipEngine
 from phantom.models import Edge, Node, RawObservation
-from phantom.shadow import graph as shadow_graph
 from phantom.shadow import bridges, vault
 from phantom.shadow import events as shadow_events
+from phantom.shadow import graph as shadow_graph
 from phantom.shadow.models import BridgeProposal, ShadowEvent
 
 
@@ -242,3 +242,39 @@ def test_rebuild_gives_no_one_a_way_to_launder_a_bridge(session, sample_paths):
     rebuild.rebuild(session)
     assert session.scalars(select(Edge).where(Edge.rule_id == "R-SHD-4")).all() == []
     assert session.scalars(select(BridgeProposal)).all() == []
+
+
+# --- the replay must cover every derivation source --------------------
+def test_counter_observation_edges_survive_a_rebuild(session, sample_paths):
+    """Regression: the replay once forgot the counter-observation projection.
+
+    Canary hits are raw observations. The R-MIR-* edges are derived from them, so a
+    rebuild that replays only the mail path silently erases the entire
+    counter-observation graph. Twenty-one edges vanished this way before the
+    rebuild's own digest caught it.
+    """
+    from phantom.mirror import tokens
+    from phantom.mirror.beacon import record_observation
+    from phantom.mirror.countergraph import build as build_countergraph
+
+    _build_corpus(session, sample_paths)
+    canary = tokens.mint(session, "canary-under-test", note="regression")
+    for ua, origin in [
+        ("python-requests/2.32.3", "203.0.113.10"),
+        ("python-requests/2.32.3", "203.0.113.11"),
+        ("Scrapy/2.11 (+https://scrapy.org)", "198.51.100.7"),
+    ]:
+        record_observation(
+            session, token=canary.token, headers={"user-agent": ua}, source_ip=origin
+        )
+    build_countergraph(session)
+    session.commit()
+
+    before = len(session.scalars(select(Edge).where(Edge.rule_id.like("R-MIR-%"))).all())
+    assert before > 0, "the fixture did not produce counter-observation edges"
+
+    result = rebuild.rebuild(session)
+
+    after = len(session.scalars(select(Edge).where(Edge.rule_id.like("R-MIR-%"))).all())
+    assert after == before
+    assert result["reproduced"] is True

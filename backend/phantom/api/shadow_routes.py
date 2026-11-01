@@ -15,9 +15,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from phantom.db import get_session
-from phantom.shadow import bridges, graph, indicators, mirrorlock, quarantine
+from phantom.shadow import bridges, graph, indicators, mirrorlock, quarantine, temporal, vault
 from phantom.shadow import report as shadow_report
-from phantom.shadow import temporal, vault
 
 router = APIRouter(prefix="/api/shadow")
 

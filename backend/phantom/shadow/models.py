@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -30,7 +29,7 @@ def _uuid() -> str:
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 class ShadowEvent(Base):

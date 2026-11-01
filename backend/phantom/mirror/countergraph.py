@@ -19,7 +19,6 @@ import networkx as nx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from phantom.engine.classify import RULES
 from phantom.engine.graph import summarize
 from phantom.engine.relationship_engine import RelationshipEngine
 from phantom.mirror import tokens

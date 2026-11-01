@@ -120,7 +120,7 @@ class ConsentService:
             },
             purpose=purpose,
             policy_version=POLICY_VERSION,
-            expires_at=(dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=ttl_days))
+            expires_at=(dt.datetime.now(dt.UTC) + dt.timedelta(days=ttl_days))
             if ttl_days
             else None,
             receipt_hash=crypto.receipt(canonical),
@@ -133,7 +133,7 @@ class ConsentService:
         record = self.session.get(ConsentRecord, consent_id)
         if record is None:
             raise ConsentError("no such consent record")
-        record.revoked_at = dt.datetime.now(dt.timezone.utc)
+        record.revoked_at = dt.datetime.now(dt.UTC)
         record.gmail_address = None
         record.phone_number = None
         record.work_email = None
@@ -142,7 +142,7 @@ class ConsentService:
         return record
 
     def active(self) -> list[ConsentRecord]:
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         out = []
         for record in self.session.scalars(select(ConsentRecord)):
             if record.revoked_at is not None:
@@ -150,7 +150,7 @@ class ConsentService:
             exp = record.expires_at
             if exp is not None:
                 if exp.tzinfo is None:
-                    exp = exp.replace(tzinfo=dt.timezone.utc)
+                    exp = exp.replace(tzinfo=dt.UTC)
                 if exp < now:
                     continue
             out.append(record)

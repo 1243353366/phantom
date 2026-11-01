@@ -4,9 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phantom-privacy"
-version = "0.1.0"
+version = "0.2.0"
 description = "Privacy intelligence and relationship mapping. Local-first, metadata-first, provenance-required."
-readme = "../README.md"
+readme = { text = """
+Privacy intelligence and relationship mapping. See the ecosystem that sees you.
+
+PHANTOM reads message metadata you authorise, identifies the infrastructure
+positioned to observe you, and draws the relationships with the evidence for each
+one and the uncertainty made explicit. Local-first, metadata-first, and every edge
+carries provenance.
+
+Full documentation lives at the repository root.
+""", content-type = "text/markdown" }
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-only" }
 keywords = ["privacy", "email", "tracking", "graph", "osint", "counterintelligence"]
@@ -46,9 +55,19 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.ruff]
-line-length = 100
+# 120 rather than 100: the rule tables and evidence payloads in engine/ read worse
+# wrapped. Long-line detection still runs, so a genuinely unwieldy line is caught.
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S"]
-ignore = ["S101"]
+ignore = [
+  "S101",  # assert is the right tool in tests and in invariant checks
+  "B008",  # Depends(...) in a signature default is how FastAPI declares dependencies
+  "S104",  # the API binds 0.0.0.0 inside the container; that is the deployment shape
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test fixtures build plausible secrets and hosts on purpose.
+"tests/*" = ["S105", "S106", "S107", "S108"]

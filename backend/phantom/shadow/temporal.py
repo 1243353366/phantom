@@ -29,7 +29,7 @@ CEILING_BASE = 0.35
 
 
 def _aware(value: dt.datetime) -> dt.datetime:
-    return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=dt.UTC)
 
 
 def co_occurrences(

@@ -14,13 +14,11 @@ from sqlalchemy import select, text
 from phantom import egress
 from phantom.engine import classify
 from phantom.engine.relationship_engine import RelationshipEngine
-from phantom.shadow import graph as shadow_graph
-from phantom.shadow import indicators, temporal
-from phantom.shadow import bridges, mirrorlock, quarantine
-from phantom.shadow import events as shadow_events
-from phantom.shadow import report as shadow_report
-from phantom.shadow import vault
 from phantom.models import Edge
+from phantom.shadow import bridges, indicators, mirrorlock, quarantine, temporal, vault
+from phantom.shadow import events as shadow_events
+from phantom.shadow import graph as shadow_graph
+from phantom.shadow import report as shadow_report
 from phantom.shadow.models import BridgeProposal, QuarantinedPayload, ShadowEvent, VaultRecord
 
 SCRIPTED = dict(client_family="scripted", client_tool="python-requests")
@@ -54,7 +52,7 @@ def test_event_is_content_fingerprinted_and_sealed(session):
 
 
 def test_identical_observation_is_not_recorded_twice(session):
-    at = dt.datetime(2026, 1, 1, 12, 0, tzinfo=dt.timezone.utc)
+    at = dt.datetime(2026, 1, 1, 12, 0, tzinfo=dt.UTC)
     first = _event(session, occurred_at=at)
     second = _event(session, occurred_at=at)
     assert first.event_hash == second.event_hash
@@ -86,7 +84,7 @@ def test_credentials_in_a_request_are_stripped_before_storage(session):
 # --- vault -------------------------------------------------------------
 def test_chain_verifies_when_untouched(session):
     for i in range(3):
-        _event(session, occurred_at=dt.datetime(2026, 1, 1, 12, i, tzinfo=dt.timezone.utc))
+        _event(session, occurred_at=dt.datetime(2026, 1, 1, 12, i, tzinfo=dt.UTC))
     result = vault.verify(session)
     assert result["ok"] is True
     assert result["checked"] == 3
@@ -94,7 +92,7 @@ def test_chain_verifies_when_untouched(session):
 
 def test_editing_a_stored_record_breaks_its_seal(session):
     for i in range(3):
-        _event(session, occurred_at=dt.datetime(2026, 1, 1, 12, i, tzinfo=dt.timezone.utc))
+        _event(session, occurred_at=dt.datetime(2026, 1, 1, 12, i, tzinfo=dt.UTC))
     victim = session.scalars(
         select(VaultRecord).order_by(VaultRecord.seq).offset(1).limit(1)
     ).first()
@@ -108,7 +106,7 @@ def test_editing_a_stored_record_breaks_its_seal(session):
 
 def test_deleting_a_record_breaks_the_chain(session):
     for i in range(3):
-        _event(session, occurred_at=dt.datetime(2026, 1, 1, 12, i, tzinfo=dt.timezone.utc))
+        _event(session, occurred_at=dt.datetime(2026, 1, 1, 12, i, tzinfo=dt.UTC))
     middle = session.scalars(
         select(VaultRecord).order_by(VaultRecord.seq).offset(1).limit(1)
     ).first()
@@ -224,7 +222,7 @@ def test_single_events_are_not_called_recurring(session):
 
 
 def test_co_occurrence_is_capped_and_hedged(session):
-    base = dt.datetime(2026, 1, 1, 12, 0, tzinfo=dt.timezone.utc)
+    base = dt.datetime(2026, 1, 1, 12, 0, tzinfo=dt.UTC)
     _event(session, subject_ref="decoy:one", origin_hmac=_dark_origin(0), occurred_at=base)
     _event(
         session, subject_ref="decoy:two", origin_hmac=_dark_origin(0),
@@ -240,7 +238,7 @@ def test_co_occurrence_is_capped_and_hedged(session):
 
 
 def test_events_outside_the_window_do_not_co_occur(session):
-    base = dt.datetime(2026, 1, 1, 12, 0, tzinfo=dt.timezone.utc)
+    base = dt.datetime(2026, 1, 1, 12, 0, tzinfo=dt.UTC)
     _event(session, subject_ref="decoy:one", origin_hmac=_dark_origin(0), occurred_at=base)
     _event(
         session, subject_ref="decoy:two", origin_hmac=_dark_origin(0),

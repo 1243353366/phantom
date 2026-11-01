@@ -27,7 +27,7 @@ INDICATOR_EXPLANATIONS = [
 
 
 def _aware(value: dt.datetime) -> dt.datetime:
-    return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=dt.UTC)
 
 
 def _bucket(events: list[ShadowEvent], kind: str, extract) -> list[dict]:

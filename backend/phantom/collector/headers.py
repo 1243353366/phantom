@@ -20,7 +20,10 @@ RECEIVED_BY = re.compile(r"\bby\s+([^\s;()]+)", re.IGNORECASE)
 IP_RE = re.compile(r"\[?(\d{1,3}(?:\.\d{1,3}){3})\]?")
 DKIM_D = re.compile(r"\bd\s*=\s*([^;\s]+)", re.IGNORECASE)
 DKIM_S = re.compile(r"\bs\s*=\s*([^;\s]+)", re.IGNORECASE)
-AUTH_RESULT = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*(pass|fail|softfail|neutral|none|temperror|permerror)", re.IGNORECASE)
+AUTH_RESULT = re.compile(
+    r"\b(spf|dkim|dmarc)\s*=\s*(pass|fail|softfail|neutral|none|temperror|permerror)",
+    re.IGNORECASE,
+)
 
 
 def _bare_domain(value: str) -> str:
@@ -50,11 +53,11 @@ class ParsedEmail:
     # --- derived -----------------------------------------------------
     @property
     def redirect_targets(self) -> list[str]:
-        return sorted({l.target_host for l in self.links if l.target_host})
+        return sorted({link.target_host for link in self.links if link.target_host})
 
     @property
     def redirector_hosts(self) -> list[str]:
-        return sorted({l.host for l in self.links if l.is_redirector})
+        return sorted({link.host for link in self.links if link.is_redirector})
 
     @property
     def pixel_hosts(self) -> list[str]:
@@ -126,7 +129,7 @@ def parse_eml(raw: bytes | str, *, html_body: str | None = None) -> ParsedEmail:
         try:
             sent_at = parsedate_to_datetime(msg["Date"])
             if sent_at.tzinfo is None:
-                sent_at = sent_at.replace(tzinfo=dt.timezone.utc)
+                sent_at = sent_at.replace(tzinfo=dt.UTC)
         except (TypeError, ValueError):
             sent_at = None
 

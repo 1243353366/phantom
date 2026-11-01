@@ -51,7 +51,7 @@ def decrypt(value: str) -> str:
 def hmac_hex(value: str, *, domain: str = "generic") -> str:
     """Stable pseudonym. Same input plus same key gives the same token."""
     key = _ensure_key()
-    return hmac.new(key, f"{domain}:{value}".encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.new(key, f"{domain}:{value}".encode(), hashlib.sha256).hexdigest()
 
 
 def receipt(payload: str) -> str:

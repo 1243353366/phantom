@@ -79,7 +79,13 @@ def find_pixels(html: str) -> list[PixelObservation]:
     parser = _Extractor()
     try:
         parser.feed(html)
-    except Exception:  # malformed HTML must not abort collection
+    except Exception:  # noqa: S110 - malformed HTML must not abort collection
+        # Deliberate, and not a silent success: a parser that dies halfway yields
+        # fewer observations than the message actually contains, and nothing in
+        # the output says so. Documented in docs/observations.md under "What this
+        # does and does not give you" rather than pretended away. Logging the
+        # exception would be better than swallowing it; that needs somewhere to
+        # put the record first, which is a scope decision, not a lint fix.
         pass
 
     out: list[PixelObservation] = []
@@ -148,7 +154,7 @@ def find_links(html: str) -> list[LinkObservation]:
     parser = _Extractor()
     try:
         parser.feed(html)
-    except Exception:
+    except Exception:  # noqa: S110 - same trade as the image extractor above
         pass
 
     out: list[LinkObservation] = []

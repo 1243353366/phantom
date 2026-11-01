@@ -12,7 +12,6 @@ holder in a local table, and never a guess about a person.
 """
 from __future__ import annotations
 
-import datetime as dt
 from collections import Counter, defaultdict
 
 from sqlalchemy import select

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from phantom.collector.headers import parse_eml
 from phantom.config import settings
 from phantom.engine.relationship_engine import RelationshipEngine, normalize_identity
-from phantom.models import Edge, Evidence, Node
+from phantom.models import Edge, Node
 
 
 def ingest_all(session, sample_paths):

@@ -30,7 +30,7 @@ def _uuid() -> str:
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 class RawObservation(Base):
@@ -96,7 +96,7 @@ class Evidence(Base):
     snippet_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
-    edge: Mapped["Edge"] = relationship(back_populates="evidence")
+    edge: Mapped[Edge] = relationship(back_populates="evidence")
 
 
 class Edge(Base):
