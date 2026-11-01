@@ -62,6 +62,7 @@ Not "later". Out.
 - A mobile app.
 - A browser extension.
 - Any people graph, contact graph, or "who knows whom".
+- Any second person's data, even with their explicit consent.
 - Any attribution: naming a person, an operator, or an employer behind infrastructure.
 - Any third-party enrichment API, reputation feed or breach lookup.
 - Any active probing of a third party, ever, under any framing.
@@ -91,6 +92,50 @@ be the sole support for a cross-layer bridge.
 
 Reconsideration gate: all five stay frozen until the v1.0 test below passes, and
 then each one still has to displace something already in the "kept" list.
+
+## Decision record: family and other people
+
+Proposed: run the same consent and observation flow for family members.
+
+Three readings, all refused, and the reason is the same in each case.
+
+| Reading | Why it is out |
+| --- | --- |
+| A family member enrols their Gmail, phone or work email **into this instance** | Their metadata lands in the operator's graph. Every edge then connects one person's infrastructure to another's, and "household exposure" is a claim about someone who is not the operator. |
+| A shared view where several people see one graph | Multi-tenant, already out. Also: whose deletion right wins when two people disagree about a shared record? |
+| A consent-gated invitation, so the operator can observe a relative who agrees | Consent makes processing lawful. It does not make a map of people into a map of infrastructure. |
+
+The deeper reason, and the one that settles it: this product's only claim is about
+infrastructure, and it is credible *because* no node is a person. Introduce people
+and every edge inherits an ambiguity the design cannot resolve. Is this edge about a
+shared mail provider, or about a household? The system has no way to tell, and a
+graph that cannot answer that question is a people graph with a provenance table
+attached.
+
+There is a second-order problem consent cannot reach. A household shares an IP, a
+device, a router, sometimes an inbox. A relative who consents exposes the others who
+did not, and their data arrives through the consented person's records. Consent from
+one member is not consent from the household, and consent given to a family member
+asking is not the same as consent given freely.
+
+And the recursive audit answers itself: a privacy tool holding a map of your family
+has become the thing it audits. That audit runs on every release, so this is not a
+line that can be crossed quietly.
+
+### What is allowed, and already true
+
+PHANTOM is single-operator. Each person runs their own instance, on their own machine,
+and the report is theirs.
+
+If a relative wants this, they install it and consent for themselves:
+
+```console
+$ phantom enroll     # their channels, their consent, their graph, their deletion right
+```
+
+Nothing is shared. Nothing merges. There is no hub, no household account and no way to
+look across two instances. That is not a limitation waiting on engineering. It is the
+product.
 
 ## The freeze rule
 
