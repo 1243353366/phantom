@@ -31,5 +31,15 @@ def session():
 
 
 @pytest.fixture()
+def client(session):
+    from fastapi.testclient import TestClient
+
+    from phantom.main import app
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture()
 def sample_paths():
     return sorted(SAMPLES.glob("*.eml"))

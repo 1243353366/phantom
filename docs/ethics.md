@@ -35,6 +35,31 @@ tool that acquires an offensive capability has become the thing it was built to
 expose. `RETALIATION_ENABLED = False` is hard-coded for that reason, and a test
 asserts it.
 
+## Layer 3: observing attempts, not people
+
+ShadowTrace records interactions with infrastructure you own or control. That
+includes refusals, which are the most sensitive rows in the database because a
+refused request invites the reading "someone was doing something wrong".
+
+The rule: **a refusal is not an accusation.** An expired grant, a lost device, a
+stale integration and a hostile probe all produce the same record. The report says
+so next to the count, and every event carries at least one innocent explanation that
+is stored with it, not generated later.
+
+| Acceptable | Not acceptable |
+| --- | --- |
+| Recording that a request arrived | Probing the requester's systems to learn more |
+| Refusing by default and logging it | Returning a decoy or poisoned response |
+| Correlating observables | Naming an operator |
+| Proposing a bridge between layers | Merging the layers automatically |
+| Keeping a payload encrypted, unopened | Executing, unpacking or rendering a sample |
+| Recording a request that contained a secret | Keeping the secret |
+
+Active probing deserves its own line. Following a requester back, scanning their
+host, or querying a third-party enrichment API would turn PHANTOM into a participant
+in the ecosystem it maps, and would make every future claim about "the activity
+around my data" a claim about activity PHANTOM provoked.
+
 ## Four relationship kinds, never merged
 
 ```

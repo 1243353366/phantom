@@ -2,6 +2,8 @@
 
 export type Classification = "observed" | "correlated" | "hypothesized";
 
+export type Layer = "surveillance" | "relationship" | "adversarial";
+
 export interface GraphNodeData {
   id: string;
   label: string;
@@ -13,6 +15,7 @@ export interface GraphNodeData {
   parent?: string;
   domain?: string;
   registry_source?: string;
+  layer?: Layer;
 }
 
 export interface GraphEdgeData {
@@ -26,6 +29,7 @@ export interface GraphEdgeData {
   observations: number;
   evidence_count: number;
   caveat: string | null;
+  cross_layer?: boolean;
 }
 
 export interface GraphPayload {
@@ -35,6 +39,7 @@ export interface GraphPayload {
     edges: number;
     edges_by_classification: Record<Classification, number>;
     nodes_by_kind: Record<string, number>;
+    nodes_by_layer?: Partial<Record<Layer, number>>;
     density: number;
     top_connectors: { key: string; label: string; degree: number }[];
   };
@@ -127,6 +132,118 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
+export interface ShadowEventRow {
+  event_hash: string;
+  kind: string;
+  outcome: string;
+  subject_ref: string;
+  occurred_at: string;
+  origin: string;
+  client_family: string;
+  client_tool: string;
+  asn: number | null;
+  detail: string;
+  alt_explanations: string[];
+  vault_seq: number | null;
+  credential_material_refused: boolean;
+}
+
+export interface RecurringIndicator {
+  indicator_type: string;
+  indicator: string;
+  events: number;
+  distinct_subjects: number;
+  subjects: string[];
+  kinds: string[];
+  outcomes: string[];
+  first_seen: string;
+  last_seen: string;
+  alternative_explanations: string[];
+  caveat: string;
+}
+
+export interface CoOccurrence {
+  indicator: string;
+  subjects: string[];
+  gap_minutes: number;
+  confidence: number;
+  classification: Classification;
+  caveat: string;
+  alternative_explanations: string[];
+}
+
+export interface BridgeProposal {
+  id: string;
+  surveillance_key: string;
+  adversarial_key: string;
+  rationale: string;
+  evidence_refs: string[];
+  status: string;
+  proposed_at: string;
+  decided_by: string;
+  decided_note: string;
+  edge_id: string | null;
+}
+
+export interface ShadowReport {
+  layer: Layer;
+  events: number;
+  by_kind: Record<string, number>;
+  by_outcome: Record<string, number>;
+  protected_objects_touched: {
+    subject: string;
+    events: number;
+    kinds: string[];
+    outcomes: string[];
+    first_at: string;
+  }[];
+  recurring_indicators: RecurringIndicator[];
+  co_occurrence_candidates: CoOccurrence[];
+  quarantined_payloads: {
+    digest: string;
+    size_bytes: number;
+    declared_type: string;
+    sniffed_type: string;
+    executable_signature: boolean;
+    source_ref: string;
+  }[];
+  bridges: {
+    pending: BridgeProposal[];
+    confirmed: BridgeProposal[];
+    rejected: BridgeProposal[];
+    note: string;
+  };
+  vault: { ok: boolean; checked: number; head: string; reason: string };
+  refusal_note: string | null;
+  guardrails: Record<string, unknown>;
+  cannot_tell_you: string[];
+  layers: Record<string, string>;
+  rule_catalogue?: {
+    id: string;
+    classification: Classification;
+    relation: string;
+    description: string;
+    caveat: string | null;
+    requires_human_confirmation: boolean;
+  }[];
+}
+
+export interface ShadowGraphPayload {
+  elements: { data: Record<string, unknown> }[];
+  stats: GraphPayload["stats"];
+  confirmed_bridges: {
+    edge_id: string;
+    from: string;
+    to: string;
+    confidence: number;
+    caveat: string | null;
+    endpoints_visible: boolean;
+  }[];
+  bridges_drawn: string[];
+  legend: Record<string, string>;
+  separation: { automatic_merges: number; rule: string; cross_layer_rule: string[] };
+}
+
 export const api = {
   graph: () => get<GraphPayload>("/api/graph"),
   edge: (id: string) => get<EdgeDetail>(`/api/graph/edge/${id}`),
@@ -141,6 +258,21 @@ export const api = {
       body,
     ),
   revoke: (id: string) => post<{ revoked_at: string }>(`/api/consent/${id}/revoke`, {}),
+  shadowReport: () => get<ShadowReport>("/api/shadow/report"),
+  shadowEvents: (limit = 200) => get<{ events: ShadowEventRow[] }>(`/api/shadow/events?limit=${limit}`),
+  shadowGraph: (includeSurveillance = false) =>
+    get<ShadowGraphPayload>(`/api/shadow/graph?include_surveillance=${includeSurveillance}`),
+  shadowIndicators: () =>
+    get<{ indicators: RecurringIndicator[]; co_occurrences: CoOccurrence[] }>("/api/shadow/indicators"),
+  proposeBridge: (body: { surveillance_key: string; adversarial_key: string; rationale: string }) =>
+    post<BridgeProposal>("/api/shadow/bridges", body),
+  confirmBridge: (id: string, note = "") =>
+    post<{ status: string; edge_id: string; confidence: number; caveat: string }>(
+      `/api/shadow/bridges/${id}/confirm`,
+      { by: "owner", note },
+    ),
+  rejectBridge: (id: string, note = "") =>
+    post<{ status: string }>(`/api/shadow/bridges/${id}/reject`, { by: "owner", note }),
   ingest: (raw_email: string, source_ref: string) =>
     post<{ ingested: { sender_domain: string; pixels: number; redirectors: number; providers: string[]; dmarc: string } }>(
       "/api/ingest/eml",

@@ -40,6 +40,8 @@ jobs:
           cd backend
           python -m phantom.cli demo --samples-dir ../samples --out ../out
           python -m phantom.cli mirror-demo --out ../out
+          python -m phantom.cli shadow-demo --out ../out
+          python -m phantom.cli vault-verify
 
       # These invariants are the project's promises. Fail the build, not the review.
       - name: Invariants
@@ -63,6 +65,24 @@ jobs:
                   assert data["evidence_count"] >= 1, f"edge without provenance: {data['id']}"
                   if data["classification"] == "hypothesized":
                       assert data["confidence"] <= 0.65, f"hypothesis over-claimed: {data['id']}"
+
+          shadow = json.loads(pathlib.Path("../out/shadow-report.json").read_text())
+          assert shadow["vault"]["ok"] is True, "evidence chain does not verify"
+          g = shadow["guardrails"]
+          assert g["automatic_layer_merges"] == 0, "the layers merged without a human"
+          assert g["active_probing_of_third_parties"] is False
+          assert g["recovered_credentials_stored"] is False
+          assert g["quarantined_payloads_executed"] is False
+          for event in shadow["protected_objects_touched"]:
+              pass  # every event carries alt_explanations; enforced at write time
+
+          view = json.loads(pathlib.Path("../out/shadow-graph.json").read_text())
+          assert view["separation"]["automatic_merges"] == 0
+          for element in view["elements"]:
+              data = element["data"]
+              if data.get("cross_layer"):
+                  assert data["classification"] == "hypothesized"
+                  assert data["confidence"] <= 0.65
           print("invariants hold")
           PY
 

@@ -51,6 +51,30 @@ SELECTOR_CAVEAT = (
 )
 
 
+ATTEMPT_CAVEAT = (
+    "An attempt to reach a protected object, recorded as the request presented "
+    "itself. It establishes that something asked, not who asked or why. A "
+    "permitted request and a hostile one look identical at this layer."
+)
+RECURRENCE_CAVEAT = (
+    "The same observable indicator recurred across separate events. Repeat "
+    "traffic groups infrastructure; it does not establish a single actor. "
+    "Shared hosting, a proxy pool and a cloud NAT gateway all produce this."
+)
+CO_OCCURRENCE_CAVEAT = (
+    "Two protected objects were touched by the same indicator inside one time "
+    "window. Proximity in time is a lead to verify. It is not evidence of a "
+    "common purpose, and automated collection produces this pattern constantly."
+)
+CROSS_LAYER_CAVEAT = (
+    "This edge joins a surveillance-layer entity to an adversarial-layer entity. "
+    "It exists only because a human confirmed a proposal after reviewing the "
+    "evidence. It is still the weakest claim in the graph: the same CDN, the "
+    "same mail vendor or the same cloud region serves unrelated parties, and a "
+    "tracker that fetched a decoy is often a scanner, not the sender."
+)
+
+
 @dataclass(frozen=True)
 class Rule:
     id: str
@@ -58,6 +82,9 @@ class Rule:
     relation: str
     description: str
     caveat: str | None = None
+    #: Cross-layer edges may never be created by ingestion. They require an
+    #: explicit human confirmation, and the engine enforces that in code.
+    requires_confirmation: bool = False
 
 
 RULES: dict[str, Rule] = {
@@ -91,11 +118,37 @@ RULES: dict[str, Rule] = {
         Rule("R-MIR-4", CORRELATED, "shares_origin_infrastructure_with",
              "Distinct origins presenting the same client stack on the same network.",
              SHARED_ORIGIN_CAVEAT),
+        Rule("R-SHD-1", OBSERVED, "requested_protected_object",
+             "An observable interaction attempted to reach this protected object.",
+             ATTEMPT_CAVEAT),
+        Rule("R-SHD-2", CORRELATED, "recurring_origin_with",
+             "The same observable indicator recurred across separate adversarial events.",
+             RECURRENCE_CAVEAT),
+        Rule("R-SHD-3", HYPOTHESIZED, "co_occurs_with",
+             "Two protected objects were reached by one indicator inside a time window.",
+             CO_OCCURRENCE_CAVEAT),
+        Rule("R-SHD-4", HYPOTHESIZED, "same_infrastructure_as",
+             "A human confirmed that an adversarial-layer entity and a "
+             "surveillance-layer entity share infrastructure.",
+             CROSS_LAYER_CAVEAT, requires_confirmation=True),
         Rule("R-MIR-5", HYPOTHESIZED, "campaign_cluster_with",
              "Two canaries were touched by the same client stack.",
              CAMPAIGN_CAVEAT),
     ]
 }
+
+
+#: Rule ids that must never be written by ingestion.
+CROSS_LAYER_RULES = frozenset(r.id for r in RULES.values() if r.requires_confirmation)
+
+
+class UnconfirmedCrossLayerEdge(RuntimeError):
+    """Raised when ingestion tries to merge the surveillance and adversarial layers.
+
+    Layers are separated by construction, not by convention: the only way to
+    write a cross-layer edge is through :mod:`phantom.shadow.bridges`, after a
+    human has confirmed a proposal.
+    """
 
 
 def confidence_for(classification: str, observation_count: int, base: float = 0.5) -> float:

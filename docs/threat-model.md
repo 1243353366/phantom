@@ -65,6 +65,31 @@ The one thing PHANTOM must never do here is respond: no hold long enough to be a
 weapon, no outbound request to the requester, no attempt to identify them. A
 collection attempt is not an invitation to attack a possibly compromised host.
 
+### A8. The analyst who over-merges
+The most likely harm does not come from an outside attacker. It comes from a person
+under pressure reading their own graph and deciding that a shared CDN means a shared
+owner.
+
+Mitigations: cross-layer edges cannot be written by ingestion at all (`R-SHD-4`
+raises `UnconfirmedCrossLayerEdge`); a bridge requires a written rationale naming the
+shared observable and a recorded human decision; the resulting edge is capped at 0.65
+confidence and carries a caveat naming the innocent explanations. The refusal path is
+the only way the layers touch.
+
+Residual risk: a user who confirms a bad bridge anyway. There is no technical control
+for that, so the confirmation dialog states the counter-argument instead of asking
+"are you sure?".
+
+### A9. Someone with the local key rewrites the vault
+The hash chain detects edits, deletions, insertions and reordering. It cannot detect
+a full rewrite by someone holding `~/.phantom/local-hmac.key`, because there is no
+external anchor.
+
+Mitigation: publish the chain head somewhere outside your control
+(`phantom vault-verify` prints it). This is documented rather than automated,
+because automating it would export event timing to a third party, which is the
+metadata the project exists to protect.
+
 ## Threat: the graph being read as an accusation
 
 A `correlated` edge between two organisations is a statement about shared

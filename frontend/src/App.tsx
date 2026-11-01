@@ -2,6 +2,7 @@ import { useState } from "react";
 import GraphView from "./components/GraphView";
 import NegativeSpaceView from "./components/NegativeSpaceView";
 import CounterIntelView from "./components/CounterIntelView";
+import ShadowTraceView from "./components/ShadowTraceView";
 import ExposureView from "./components/ExposureView";
 import ConsentView from "./components/ConsentView";
 import SelfAuditView from "./components/SelfAuditView";
@@ -11,6 +12,7 @@ const TABS = [
   ["graph", "Phantom graph"],
   ["negative", "Negative space"],
   ["counter", "Counter-observation"],
+  ["shadow", "ShadowTrace"],
   ["exposure", "Exposure"],
   ["consent", "Contact permissions"],
   ["audit", "Who watches the watchers"],
@@ -50,6 +52,7 @@ export default function App() {
         {tab === "graph" && <GraphView />}
         {tab === "negative" && <NegativeSpaceView />}
         {tab === "counter" && <CounterIntelView />}
+        {tab === "shadow" && <ShadowTraceView />}
         {tab === "exposure" && <ExposureView />}
         {tab === "consent" && <ConsentView />}
         {tab === "audit" && <SelfAuditView />}

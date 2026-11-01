@@ -37,6 +37,7 @@ def init_db() -> None:
     if _initialized:
         return
     from phantom import models  # noqa: F401  (register mappers)
+    from phantom.shadow import models as shadow_models  # noqa: F401
 
     Base.metadata.create_all(engine)
     _initialized = True

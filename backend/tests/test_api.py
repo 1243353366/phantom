@@ -1,18 +1,6 @@
 """The HTTP surface must not offer a way to export anyone's data."""
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
-
-from phantom.main import app
-
-
-@pytest.fixture()
-def client(session):
-    with TestClient(app) as c:
-        yield c
-
-
 def test_health_declares_what_it_will_not_do(client):
     body = client.get("/api/health").json()
     assert body["sends_email"] is False

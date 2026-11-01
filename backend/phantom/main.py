@@ -13,6 +13,7 @@ from phantom import __version__
 from phantom.api.mirror_routes import console as mirror_console
 from phantom.api.mirror_routes import decoy as mirror_decoy
 from phantom.api.routes import router
+from phantom.api.shadow_routes import router as shadow_router
 from phantom.db import init_db
 
 @asynccontextmanager
@@ -42,3 +43,4 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(mirror_console)
 app.include_router(mirror_decoy)
+app.include_router(shadow_router)

@@ -74,8 +74,16 @@ class RelationshipEngine:
         payload: dict | None = None,
         base_confidence: float = 0.5,
         observed_at: dt.datetime | None = None,
+        confirmed: bool = False,
     ) -> Edge:
         rule = classify.RULES[rule_id]
+        if rule.requires_confirmation and not confirmed:
+            # Ingestion is not allowed to join the layers. A cross-layer edge
+            # needs a human, and that decision lives in shadow.bridges.
+            raise classify.UnconfirmedCrossLayerEdge(
+                f"{rule_id} joins the surveillance and adversarial layers and "
+                "cannot be written by ingestion"
+            )
         edge = self.session.scalar(
             select(Edge).where(
                 Edge.src_key == src_key,

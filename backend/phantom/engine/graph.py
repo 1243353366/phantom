@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from phantom.models import Edge, Node
+from phantom.shadow import layer_of
 
 
 def build_graph(session: Session) -> nx.DiGraph:
@@ -20,6 +21,7 @@ def build_graph(session: Session) -> nx.DiGraph:
             label=node.label,
             kind=node.kind,
             attrs=node.attrs,
+            layer=layer_of(node.kind),
             first_seen=node.first_seen.isoformat(),
             last_seen=node.last_seen.isoformat(),
         )
@@ -61,6 +63,7 @@ def to_cytoscape(session: Session) -> dict:
                     "id": key,
                     "label": data.get("label", key),
                     "kind": data.get("kind"),
+                    "layer": data.get("layer", layer_of(data.get("kind", ""))),
                     "centrality": round(centrality.get(key, 0.0), 4),
                     "degree": g.degree(key),
                     **{
@@ -95,6 +98,11 @@ def to_cytoscape(session: Session) -> dict:
     return {
         "elements": elements,
         "stats": summarize(g),
+        "layers": {
+            "surveillance": "Organisations, providers and tracking infrastructure.",
+            "relationship": "Your contacts, processed locally and never uploaded.",
+            "adversarial": "Observables that interacted with your decoys and locks.",
+        },
         "legend": {
             "observed": "Directly detected in a message you authorised.",
             "correlated": "Recurring overlap across independent observations.",
@@ -108,6 +116,11 @@ def summarize(g: nx.DiGraph) -> dict:
     by_class: dict[str, int] = {"observed": 0, "correlated": 0, "hypothesized": 0}
     for *_, d in g.edges(data=True):
         by_class[d["classification"]] = by_class.get(d["classification"], 0) + 1
+
+    by_layer: dict[str, int] = {}
+    for _, d in g.nodes(data=True):
+        layer = d.get("layer") or layer_of(d.get("kind", ""))
+        by_layer[layer] = by_layer.get(layer, 0) + 1
 
     by_kind: dict[str, int] = {}
     for _, d in g.nodes(data=True):
@@ -127,6 +140,7 @@ def summarize(g: nx.DiGraph) -> dict:
         "edges": g.number_of_edges(),
         "edges_by_classification": by_class,
         "nodes_by_kind": by_kind,
+        "nodes_by_layer": by_layer,
         "top_connectors": connectors,
         "density": round(nx.density(g), 4) if g.number_of_nodes() > 1 else 0.0,
     }
