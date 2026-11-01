@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from phantom.collector.headers import ParsedEmail
 from phantom.collector.pixels import LinkObservation, PixelObservation
 from phantom.models import RawObservation
+from phantom.redaction import redact_ips, redact_params, safe_url
 
 EMAIL_METADATA = "email_metadata"
 SCHEMA_VERSION = 1
@@ -65,8 +66,28 @@ def _iso(value: dt.datetime | None) -> str | None:
     return value.astimezone(dt.UTC).isoformat()
 
 
+def _minimised_pixel(pixel) -> dict:
+    data = redact_ips(asdict(pixel))
+    data["url"] = safe_url(data.get("url", ""))
+    data["params"] = redact_params(data.get("params"))
+    return data
+
+
+def _minimised_link(link) -> dict:
+    data = redact_ips(asdict(link))
+    data["url"] = safe_url(data.get("url", ""))
+    data["params"] = redact_params(data.get("params"))
+    return data
+
+
 def to_payload(mail: ParsedEmail) -> dict:
-    """The observation as stored. No body, no rendered HTML, no recipients."""
+    """The observation as stored. No body, no rendered HTML, no recipients.
+
+    URLs are stored without their query values and IP literals are withheld, so
+    what remains is the infrastructure relationship rather than the identifier
+    that personalises it. A pixel URL is still identifiable as a pixel; the
+    recipient token inside it is not retained.
+    """
     return {
         "schema": SCHEMA_VERSION,
         "message_id": mail.message_id,
@@ -79,9 +100,9 @@ def to_payload(mail: ParsedEmail) -> dict:
         "return_path_domain": mail.return_path_domain,
         "dkim": list(mail.dkim),
         "auth_results": list(mail.auth_results),
-        "received_hops": list(mail.received_hops),
-        "pixels": [asdict(p) for p in mail.pixels],
-        "links": [asdict(link) for link in mail.links],
+        "received_hops": redact_ips(list(mail.received_hops)),
+        "pixels": [_minimised_pixel(p) for p in mail.pixels],
+        "links": [_minimised_link(link) for link in mail.links],
         "mailer": mail.mailer,
     }
 

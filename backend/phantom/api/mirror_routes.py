@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 
 from phantom.db import get_session
 from phantom.mirror import countergraph, tokens
-from phantom.mirror.beacon import TRANSPARENT_GIF, UnknownCanary, purge_expired, record_observation
+from phantom.mirror.beacon import (
+    TRANSPARENT_GIF,
+    CapReached,
+    UnknownCanary,
+    purge_expired,
+    record_observation,
+)
 from phantom.mirror.report import asymmetry_report
 
 console = APIRouter(prefix="/api/mirror")
@@ -103,7 +109,8 @@ def beacon(filename: str, request: Request, session: Session = Depends(db)) -> R
             method=request.method,
             path=request.url.path,
         )
-    except UnknownCanary:
+    except (UnknownCanary, CapReached):
+        # Answer identically whether the token is real, unknown or over budget.
         pass
 
     if delay_ms:

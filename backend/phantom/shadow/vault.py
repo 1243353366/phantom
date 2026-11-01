@@ -7,10 +7,17 @@ because the checksum can be recomputed. Each record therefore commits to its
 predecessor *and* is sealed with a key that never leaves this machine, so
 editing history requires the key.
 
-Two failure modes this catches:
+Three failure modes this catches:
 
-  edit      a stored event was modified after the fact
+  edit      a record's own fields were modified after the fact
   splice    records were deleted or reordered
+  content   an event row was modified while its chain link stayed intact
+
+The third is the one worth spelling out. Sealing a record only proves the chain
+is intact. It says nothing about the event the record points at, and an intact
+chain over rewritten evidence is worse than a broken one because it looks like
+proof. Verification therefore re-derives every event's fingerprint from the row
+as it is stored now and compares it with the hash the vault committed to.
 
 What it cannot catch: a full rewrite by someone holding the local key. There is
 no external timestamping authority here, by design. If you need that, hash the
@@ -70,8 +77,15 @@ def append(
     return record
 
 
-def verify(session: Session) -> dict:
-    """Recompute the whole chain. Returns where it first breaks, if it does."""
+def verify(session: Session, *, check_event_contents: bool = True) -> dict:
+    """Recompute the whole chain, and the events it commits to.
+
+    Returns where it first breaks, if it does. ``check_event_contents`` exists so
+    a caller can ask for the cheap chain-only answer explicitly; the default is
+    the one that means something.
+    """
+    from phantom.shadow.events import FINGERPRINT_VERSION, canonical_payload, event_fingerprint
+    from phantom.shadow.models import ShadowEvent
     records = session.scalars(select(VaultRecord).order_by(VaultRecord.seq)).all()
     if not records:
         return {
@@ -109,11 +123,61 @@ def verify(session: Session) -> dict:
                 ),
                 "head": records[-1].record_hash,
             }
+        if check_event_contents:
+            event = session.scalar(
+                select(ShadowEvent).where(ShadowEvent.event_hash == record.event_hash)
+            )
+            if event is None:
+                return {
+                    "ok": False,
+                    "checked": records.index(record),
+                    "first_bad_seq": record.seq,
+                    "reason": (
+                        "missing event: the chain names an event that is no longer "
+                        "in the database, so the record points at nothing"
+                    ),
+                    "head": records[-1].record_hash,
+                }
+            version = getattr(event, "fingerprint_version", 1)
+            if version < FINGERPRINT_VERSION:
+                return {
+                    "ok": False,
+                    "checked": records.index(record),
+                    "first_bad_seq": record.seq,
+                    "reason": (
+                        f"unverifiable event: seq {record.seq} was written under "
+                        f"canonical form v{version}, which cannot be recomputed. "
+                        "The chain is intact but the contents of that event cannot "
+                        "be confirmed. Re-record it if it still matters."
+                    ),
+                    "head": records[-1].record_hash,
+                }
+            recomputed = event_fingerprint(canonical_payload(event))
+            if recomputed != record.event_hash:
+                return {
+                    "ok": False,
+                    "checked": records.index(record),
+                    "first_bad_seq": record.seq,
+                    "reason": (
+                        "event contents changed: the chain link still seals, but the "
+                        "event row no longer hashes to the value the vault committed "
+                        "to. Something edited the evidence rather than the chain."
+                    ),
+                    "head": records[-1].record_hash,
+                }
+
         expected_prev = record.record_hash
 
     return {
         "ok": True,
         "checked": len(records),
         "head": records[-1].record_hash,
-        "reason": "every record reseals to its stored seal and links to its predecessor",
+        "reason": (
+            "every record reseals to its own seal, links to its predecessor, and "
+            "its event row still hashes to the committed value"
+            if check_event_contents
+            else "every record reseals to its stored seal and links to its predecessor "
+                 "(event contents were not checked)"
+        ),
+        "event_contents_checked": check_event_contents,
     }

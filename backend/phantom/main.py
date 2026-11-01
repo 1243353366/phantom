@@ -20,6 +20,17 @@ from phantom.db import init_db
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    # Retention is enforced on start, not when someone remembers. A service
+    # that holds canary hits is exactly the thing that should not depend on a
+    # human running a purge command.
+    from phantom.db import get_session
+    from phantom.retention import enforce_all
+
+    session = get_session()
+    try:
+        enforce_all(session)
+    finally:
+        session.close()
     yield
 
 

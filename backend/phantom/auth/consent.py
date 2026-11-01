@@ -51,6 +51,8 @@ class ConsentService:
         consent_work_email: bool = False,
         purpose: str = PURPOSE,
         ttl_days: int | None = 365,
+        attested_by: str = "",
+        attestation: str = "",
     ) -> ConsentRecord:
         supplied = {
             "gmail_address": gmail_address,
@@ -74,6 +76,20 @@ class ConsentService:
         if not any((gmail_address, phone_number, work_email)):
             raise ConsentError("No contact details were supplied.")
 
+        # Consent here is an attestation by the operator, and the record says so
+        # rather than implying a signature it does not have. This is a design
+        # position, not an oversight: PHANTOM is single-operator, and the honest
+        # label is "the person running this says permission exists".
+        attested_by = (attested_by or "").strip()
+        attestation = (attestation or "").strip()
+        if not attested_by or not attestation:
+            raise ConsentError(
+                "consent must be attested: supply attested_by (who is stating the "
+                "permission) and attestation (the words they used). An unattributed "
+                "flag is indistinguishable from someone ticking a box on another "
+                "person's behalf."
+            )
+
         if gmail_address and not EMAIL_RE.match(gmail_address):
             raise ConsentError("gmail_address does not look like an email address.")
         if work_email and not EMAIL_RE.match(work_email):
@@ -93,6 +109,8 @@ class ConsentService:
                 },
                 "purpose": purpose,
                 "policy_version": POLICY_VERSION,
+                "attested_by": attested_by,
+                "attestation": attestation,
             },
             sort_keys=True,
         )
@@ -120,6 +138,8 @@ class ConsentService:
             },
             purpose=purpose,
             policy_version=POLICY_VERSION,
+            attested_by=attested_by,
+            attestation=attestation,
             expires_at=(dt.datetime.now(dt.UTC) + dt.timedelta(days=ttl_days))
             if ttl_days
             else None,
@@ -128,6 +148,32 @@ class ConsentService:
         self.session.add(record)
         self.session.commit()
         return record
+
+    def clear_expired(self) -> int:
+        """Drop the stored values for every expired grant.
+
+        ``active()`` already refuses to hand out an expired record, but refusing
+        to read something is not the same as not holding it. This is the half
+        that matters for a retention promise.
+        """
+        now = dt.datetime.now(dt.UTC)
+        cleared = 0
+        for record in self.session.scalars(select(ConsentRecord)):
+            exp = record.expires_at
+            if exp is None:
+                continue
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=dt.UTC)
+            if exp >= now:
+                continue
+            if record.gmail_address or record.phone_number or record.work_email:
+                record.gmail_address = None
+                record.phone_number = None
+                record.work_email = None
+                record.scopes = {**record.scopes, "revoked": True, "expired": True}
+                cleared += 1
+        self.session.commit()
+        return cleared
 
     def revoke(self, consent_id: str) -> ConsentRecord:
         record = self.session.get(ConsentRecord, consent_id)
@@ -169,5 +215,8 @@ class ConsentService:
             "granted_at": record.granted_at.isoformat(),
             "expires_at": record.expires_at.isoformat() if record.expires_at else None,
             "revoked_at": record.revoked_at.isoformat() if record.revoked_at else None,
+            "attested_by": record.attested_by,
+            "attestation": record.attestation,
+            "attestation_is_verified_identity": False,
             "receipt_hash": record.receipt_hash,
         }

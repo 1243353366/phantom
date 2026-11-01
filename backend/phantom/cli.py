@@ -14,6 +14,7 @@ import json
 import sys
 from pathlib import Path
 
+from phantom import egress
 from phantom.collector.headers import parse_eml
 from phantom.db import get_session, init_db
 from phantom.engine.graph import to_cytoscape
@@ -133,6 +134,8 @@ def cmd_enroll(args: argparse.Namespace) -> int:
             consent_phone=args.consent_phone,
             consent_work_email=args.consent_work_email,
             ttl_days=args.ttl_days,
+            attested_by=args.attested_by,
+            attestation=args.attestation,
         )
     except ConsentError as exc:
         print(f"refused: {exc}", file=sys.stderr)
@@ -298,7 +301,16 @@ def cmd_shadow_demo(args: argparse.Namespace) -> int:
         )
 
     # One legitimate read inside a grant, so the log is not all refusals.
-    mirrorlock.grant(session, model.id, minutes=5, note="owner reading on a second device")
+    # The demo authorises the way an operator would: by minting the code from the
+    # local key, not by reaching into the module and skipping the check.
+    mirrorlock.grant(
+        session,
+        model.id,
+        minutes=5,
+        approval=mirrorlock.approval_code(model.id, 5),
+        granted_by="demo operator",
+        note="owner reading on a second device",
+    )
     mirrorlock.request(session, model.id, requester_label="owner", origin_hmac="f" * 64)
 
     quarantine.capture(
@@ -348,6 +360,57 @@ def cmd_shadow_report(args: argparse.Namespace) -> int:
     shadow_graph.project(session)
     print(json.dumps(shadow_report.adversarial_report(session), indent=2))
     session.close()
+    return 0
+
+
+def cmd_approve(args: argparse.Namespace) -> int:
+    """Print the approval code that authorises one decryption window.
+
+    Deliberately a local console command reading the local key. The API cannot
+    produce this code for itself, which is what stops a caller from both asking
+    for access and granting it.
+    """
+    from phantom.shadow import mirrorlock
+
+    session = get_session()
+    try:
+        if session.get(mirrorlock.ProtectedBlob, args.blob_id) is None:
+            print(f"no such protected object: {args.blob_id}", file=sys.stderr)
+            return 2
+    finally:
+        session.close()
+    print(mirrorlock.approval_code(args.blob_id, args.minutes))
+    print(
+        f"authorises {args.minutes} minutes of read access to {args.blob_id}. "
+        "Single use is not enforced; revoke after the read.",
+        file=sys.stderr,
+    )
+    return 0
+
+
+def cmd_retention(args: argparse.Namespace) -> int:
+    """Enforce every expiry this system claims to enforce."""
+    from phantom.auth.consent import ConsentService
+    from phantom.mirror.beacon import purge_expired
+
+    init_db()
+    session = get_session()
+    try:
+        purged = purge_expired(session)
+        cleared = ConsentService(session).clear_expired()
+        scrubbed = egress.scrub_legacy_log()
+    finally:
+        session.close()
+    print(
+        json.dumps(
+            {
+                "canary_observations_purged": purged,
+                "consent_values_cleared": cleared,
+                "egress_log_lines_scrubbed": scrubbed,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -423,6 +486,14 @@ def main(argv: list[str] | None = None) -> int:
     enroll.add_argument("--consent-phone", action="store_true")
     enroll.add_argument("--consent-work-email", action="store_true")
     enroll.add_argument("--ttl-days", type=int, default=365)
+    enroll.add_argument(
+        "--attested-by", dest="attested_by", required=True,
+        help="who is stating this permission exists",
+    )
+    enroll.add_argument(
+        "--attestation", required=True,
+        help="the words the person used, recorded verbatim",
+    )
     enroll.set_defaults(func=cmd_enroll)
 
     canary = sub.add_parser("canary", help="mint a canary token and print its URL")
@@ -443,6 +514,17 @@ def main(argv: list[str] | None = None) -> int:
 
     shadow_report = sub.add_parser("shadow-report", help="Layer 3 report as JSON")
     shadow_report.set_defaults(func=cmd_shadow_report)
+
+    approve = sub.add_parser(
+        "approve", help="print the approval code for one decryption window"
+    )
+    approve.add_argument("blob_id")
+    approve.add_argument("--minutes", type=int, default=15)
+    approve.set_defaults(func=cmd_approve)
+
+    sub.add_parser(
+        "retention", help="enforce every stated expiry now"
+    ).set_defaults(func=cmd_retention)
 
     vault_verify = sub.add_parser("vault-verify", help="recompute the evidence hash chain")
     vault_verify.set_defaults(func=cmd_vault_verify)

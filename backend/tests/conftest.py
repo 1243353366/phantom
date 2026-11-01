@@ -19,7 +19,13 @@ import pytest  # noqa: E402
 
 @pytest.fixture()
 def session():
+    # Import every model module before creating tables. Otherwise a test that
+    # happens to run first can create a schema that is missing whichever tables
+    # its own imports had not yet registered.
+    from phantom import models  # noqa: F401
     from phantom.db import Base, SessionLocal, engine
+    from phantom.mirror import models as mirror_models  # noqa: F401
+    from phantom.shadow import models as shadow_models  # noqa: F401
 
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)

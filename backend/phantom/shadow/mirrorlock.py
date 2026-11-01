@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import hashlib
+import hmac
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -44,14 +45,59 @@ def lock(session: Session, label: str, plaintext: bytes | str, *, note: str = ""
     return blob
 
 
-def grant(session: Session, blob_id: str, *, minutes: int = 15, note: str = "") -> AccessGrant:
-    """Open a short, explicit window. The only way decryption can succeed."""
+class NotAuthorised(PermissionError):
+    """Raised when a grant is attempted without proof of authorisation."""
+
+
+APPROVAL_CHARS = 12
+
+
+def approval_code(blob_id: str, minutes: int) -> str:
+    """The proof that an approval came from the machine's own operator.
+
+    Derived from the local key, which never leaves this host, and printed only by
+    the local console. That is what separates "someone who can reach the API"
+    from "someone who can authorise a decryption", a distinction the previous
+    version did not draw: any caller able to POST a grant created one.
+    """
+    return crypto.hmac_hex(f"{blob_id}:{minutes}", domain="mirrorlock-approval")[:APPROVAL_CHARS]
+
+
+def grant(
+    session: Session,
+    blob_id: str,
+    *,
+    minutes: int = 15,
+    approval: str,
+    granted_by: str = "",
+    note: str = "",
+) -> AccessGrant:
+    """Open a short, explicit window. Requires an operator approval code.
+
+    ``approval`` is not an identity. It is evidence that someone with access to
+    the local key, and therefore to this machine's console, decided a read should
+    be possible. The reason it is required is that a default-deny system whose
+    deny path can be unblocked by the same unauthenticated caller as the request
+    has no deny path at all.
+    """
     if minutes <= 0 or minutes > 24 * 60:
         raise ValueError("a grant must last between 1 minute and 24 hours")
+    if session.get(ProtectedBlob, blob_id) is None:
+        raise LookupError("no such protected object")
+    expected = approval_code(blob_id, minutes)
+    if not approval or not hmac.compare_digest(approval.strip(), expected):
+        raise NotAuthorised(
+            "a grant needs the approval code for this object and duration. "
+            f"Run `phantom approve <blob_id> --minutes {minutes}` on the host that "
+            "holds the key and pass the code it prints."
+        )
     record = AccessGrant(
         blob_id=blob_id,
         expires_at=_now() + dt.timedelta(minutes=minutes),
         note=note,
+        granted_by=granted_by or "operator (local console)",
+        authorization="local-approval-code",
+        approval_digest=hashlib.sha256(expected.encode()).hexdigest(),
     )
     session.add(record)
     session.commit()
@@ -126,7 +172,7 @@ def request(
         client_tool=client_tool,
         asn=asn,
         detail=(
-            f"{requester_label} requested '{blob.label}' "
+            f"{requester_label} (claimed, unverified) requested '{blob.label}' "
             f"({blob.size_bytes} bytes). Outcome: "
             f"{'granted' if granted else 'denied'}. {reason}"
             + (f" Stated purpose: {justification}" if justification else "")

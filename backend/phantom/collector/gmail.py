@@ -105,11 +105,18 @@ def _assert_allowlisted(url: str) -> bool:
 
 
 def revoke(access_token: str) -> None:
-    """Hand the token back. Revocation is a first-class operation, not a docs page."""
+    """Hand the token back. Revocation is a first-class operation, not a docs page.
+
+    The token travels in the request body, not the query string. A query string
+    is part of the URL, and a URL is the one thing that reliably ends up in
+    logs, proxies, browser history and crash reports.
+    """
     egress.request(
         "POST",
-        "https://oauth2.googleapis.com/revoke?" + urlencode({"token": access_token}),
+        "https://oauth2.googleapis.com/revoke",
         purpose="revoke Gmail access when the user asks",
+        data={"token": access_token},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
 
 

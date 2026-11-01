@@ -71,6 +71,9 @@ class ShadowEvent(Base):
     #: Set when the request carried credential-looking material that was stripped
     #: before storage. PHANTOM never keeps recovered credentials.
     credential_material_refused: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Which canonical form produced ``event_hash``. A row written under an older
+    #: form cannot be re-verified, and saying so is better than passing it.
+    fingerprint_version: Mapped[int] = mapped_column(Integer, default=1)
     vault_seq: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
@@ -107,6 +110,10 @@ class AccessGrant(Base):
 
     Decryption is denied unless a row here is live. The default for every
     request is denial.
+
+    A grant must also record *how it was authorised*. A row that only says
+    "access allowed" is indistinguishable from someone with the ability to
+    insert rows, which is exactly the boundary this table exists to draw.
     """
 
     __tablename__ = "access_grants"
@@ -117,6 +124,12 @@ class AccessGrant(Base):
     expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     note: Mapped[str] = mapped_column(Text, default="")
+    #: Who approved this, as recorded by the approving surface.
+    granted_by: Mapped[str] = mapped_column(String(120), default="unrecorded")
+    #: The mechanism that proved authorisation, e.g. "local-approval-code".
+    authorization: Mapped[str] = mapped_column(String(64), default="unrecorded")
+    #: Digest of the approval proof, so the proof itself is not stored.
+    approval_digest: Mapped[str] = mapped_column(String(64), default="")
 
 
 class QuarantinedPayload(Base):

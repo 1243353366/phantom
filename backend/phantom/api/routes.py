@@ -126,6 +126,8 @@ def enroll(body: EnrollRequest, session: Session = Depends(db)) -> EnrollRespons
             consent_phone=body.consent_phone,
             consent_work_email=body.consent_work_email,
             ttl_days=body.ttl_days,
+            attested_by=body.attested_by,
+            attestation=body.attestation,
         )
     except ConsentError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

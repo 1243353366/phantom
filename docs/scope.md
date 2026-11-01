@@ -163,3 +163,37 @@ Because the failure mode is not a bad decision, it is a series of reasonable one
 Six modules at v0.1 became nine at v0.2, and none of that growth came from a user
 asking for it. Growth in module count is not growth in usefulness, and the only
 reliable defence is a boundary that predates the temptation.
+
+## Social platform ingestion, including the participant-authorization variant
+
+Proposed twice. Refused twice, for two different reasons, and the second refusal
+is the one worth recording.
+
+**First proposal:** ingest Facebook, Discord, Snapchat and Meta, requesting
+people's permission for their usernames. Refused because "permission" had no
+mechanism: the operator would type the consent of someone who never touched the
+system, and the record would carry an attestation, not an agreement.
+
+**Second proposal, which is genuinely better:** map only relationships that
+participants explicitly authorize, and let each person choose to be mapped. This
+fixes the authorization problem. It does not fix the structural one.
+
+**Why it still fails: edge consent is not node consent.** A consenting person's
+friendship graph is not their data alone. If one participant authorizes their
+Discord server membership, the resulting graph records which *other* people are
+in that server. Those people are non-participants. The same applies to follows,
+shared affiliations and public interaction patterns, which are relationships
+*between* people by definition. There is no way to store "Priya is in server X"
+without storing "and so is everyone else in X".
+
+Authorization scales per node. The data arrives per edge. A design that cannot
+express that difference will leak the non-consenting, however careful the
+enrolment flow is.
+
+**What remains in scope, and is arguably the more useful product:** the
+correlation surface of the operator's *own* accounts. Username reuse across
+platforms, which communities make the operator findable, and which cross-platform
+identity overlaps an observer could exploit to link accounts together. This maps
+the operator's exposure, uses only the operator's own accounts, and records no
+one else. Different question, same layer of the graph: how does *my* identity
+interact with the platforms, rather than who is connected to whom.

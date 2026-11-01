@@ -162,6 +162,12 @@ class ConsentRecord(Base):
     scopes: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     purpose: Mapped[str] = mapped_column(String(320))
     policy_version: Mapped[str] = mapped_column(String(16), default="1.0")
+    #: Who stated that this consent was given. Recorded verbatim, and it is a
+    #: claim, not a verified identity: there is no participant authentication in
+    #: a single-operator local install, and pretending otherwise would be the
+    #: most consequential lie this system could tell.
+    attested_by: Mapped[str] = mapped_column(String(200), default="")
+    attestation: Mapped[str] = mapped_column(Text, default="")
     granted_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
     expires_at: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

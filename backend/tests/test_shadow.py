@@ -138,7 +138,10 @@ def test_decryption_is_denied_by_default(session):
 
 def test_a_live_grant_permits_exactly_that_read(session):
     blob = mirrorlock.lock(session, "board pack", b"secret numbers")
-    mirrorlock.grant(session, blob.id, minutes=5)
+    mirrorlock.grant(
+        session, blob.id, minutes=5,
+        approval=mirrorlock.approval_code(blob.id, 5),
+    )
     result = mirrorlock.request(session, blob.id, requester_label="owner")
     assert result["granted"] is True
     assert result["plaintext"] == "secret numbers"
@@ -146,7 +149,10 @@ def test_a_live_grant_permits_exactly_that_read(session):
 
 def test_revoking_a_grant_restores_denial(session):
     blob = mirrorlock.lock(session, "board pack", b"secret numbers")
-    mirrorlock.grant(session, blob.id, minutes=5)
+    mirrorlock.grant(
+        session, blob.id, minutes=5,
+        approval=mirrorlock.approval_code(blob.id, 5),
+    )
     assert mirrorlock.request(session, blob.id)["granted"] is True
     mirrorlock.revoke(session, blob.id)
     assert mirrorlock.request(session, blob.id)["granted"] is False
@@ -155,9 +161,15 @@ def test_revoking_a_grant_restores_denial(session):
 def test_absurd_grant_windows_are_refused(session):
     blob = mirrorlock.lock(session, "x", b"y")
     with pytest.raises(ValueError):
-        mirrorlock.grant(session, blob.id, minutes=0)
+        mirrorlock.grant(
+            session, blob.id, minutes=0,
+            approval=mirrorlock.approval_code(blob.id, 0),
+        )
     with pytest.raises(ValueError):
-        mirrorlock.grant(session, blob.id, minutes=60 * 24 + 1)
+        mirrorlock.grant(
+            session, blob.id, minutes=60 * 24 + 1,
+            approval=mirrorlock.approval_code(blob.id, 60 * 24 + 1),
+        )
 
 
 def test_refused_request_never_leaks_the_content(session):
@@ -458,7 +470,31 @@ def test_mirrorlock_round_trip_over_http(client):
     assert denied["granted"] is False
     assert denied["plaintext"] is None
 
-    client.post(f"/api/shadow/mirrorlock/{blob_id}/grant", json={"minutes": 5})
+    # A grant without the operator's code is refused, and the refusal is 403
+    # rather than a silent success. Asking to read and authorising a read are
+    # different acts.
+    without_proof = client.post(
+        f"/api/shadow/mirrorlock/{blob_id}/grant", json={"minutes": 5}
+    )
+    assert without_proof.status_code == 403
+    still_denied = client.post(
+        f"/api/shadow/mirrorlock/{blob_id}/request", json={"requester_label": "chancer"}
+    ).json()
+    assert still_denied["granted"] is False
+
+    from phantom.shadow import mirrorlock
+
+    authorised = client.post(
+        f"/api/shadow/mirrorlock/{blob_id}/grant",
+        json={
+            "minutes": 5,
+            "approval": mirrorlock.approval_code(blob_id, 5),
+            "granted_by": "operator",
+        },
+    )
+    assert authorised.status_code == 200
+    assert authorised.json()["authorization"] == "local-approval-code"
+
     granted = client.post(
         f"/api/shadow/mirrorlock/{blob_id}/request", json={"requester_label": "owner"}
     ).json()

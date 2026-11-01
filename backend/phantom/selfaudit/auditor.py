@@ -32,6 +32,12 @@ BYPASS_PATTERNS = [
 ]
 
 
+#: The chokepoint itself resolves names, because an allowlist that never looks at
+#: where a name points cannot see a rebinding. That one file may use sockets; any
+#: other file that does is a bypass and is still reported.
+CHOKEPOINT = {"egress.py"}
+
+
 class SelfAuditor:
     def __init__(self, db_session=None) -> None:
         self.session = db_session
@@ -47,7 +53,10 @@ class SelfAuditor:
             if "selfaudit" in path.parts:
                 continue
             text = path.read_text(encoding="utf-8", errors="ignore")
+            is_chokepoint = path.name in CHOKEPOINT
             for pattern, label in BYPASS_PATTERNS:
+                if is_chokepoint and "socket" in label:
+                    continue
                 for match in pattern.finditer(text):
                     line = text[: match.start()].count("\n") + 1
                     findings.append(

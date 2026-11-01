@@ -17,7 +17,7 @@ from __future__ import annotations
 import datetime as dt
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from phantom.config import settings
@@ -41,6 +41,16 @@ class UnknownCanary(LookupError):
     """Token did not resolve. The caller should still return the GIF."""
 
 
+class CapReached(Exception):
+    """This canary has recorded as much as its budget allows.
+
+    Separate from ``UnknownCanary`` because the two facts are different: one is
+    "I do not know this token", the other is "I know it and I am done storing
+    it". They are handled the same way at the edge, and differently everywhere
+    else.
+    """
+
+
 def tarpit_delay_ms(fp: AttemptFingerprint) -> int:
     """Bounded, signal-driven hold. Slows naive walkers, never weaponises us."""
     configured = min(max(settings.tarpit_ms_max, 0), TARPIT_HARD_CAP_MS)
@@ -61,10 +71,40 @@ def record_observation(
     received_at: dt.datetime | None = None,
     asn_db: Path | None = None,
 ) -> tuple[MirrorObservation, int]:
-    """Persist one hit. Returns the stored observation and the tarpit delay."""
+    """Persist one hit. Returns the stored observation and the tarpit delay.
+
+    Raises ``CapReached`` once a token has exhausted its budget. The caller is
+    expected to answer the request anyway: telling a prober that the beacon
+    stopped recording is the one piece of information worth denying them.
+    """
     row = tokens.verify(session, token)
     if row is None:
         raise UnknownCanary("token did not resolve")
+
+    hour_ago = dt.datetime.now(dt.UTC) - dt.timedelta(hours=1)
+    total = session.scalar(
+        select(func.count())
+        .select_from(MirrorObservation)
+        .where(MirrorObservation.token_id == row.id)
+    ) or 0
+    if total >= settings.canary_max_observations_per_token:
+        raise CapReached(
+            f"canary has {total} observations, its budget is "
+            f"{settings.canary_max_observations_per_token}"
+        )
+    recent = session.scalar(
+        select(func.count())
+        .select_from(MirrorObservation)
+        .where(
+            MirrorObservation.token_id == row.id,
+            MirrorObservation.received_at >= hour_ago,
+        )
+    ) or 0
+    if recent >= settings.canary_max_per_hour_per_token:
+        raise CapReached(
+            f"canary recorded {recent} hits in the last hour, its budget is "
+            f"{settings.canary_max_per_hour_per_token}"
+        )
 
     fp = fingerprint(
         source_ip=source_ip, headers=headers, method=method, path=path, asn_db=asn_db
@@ -83,7 +123,10 @@ def record_observation(
         client_tool=fp.client_tool,
         extraction_signals=fp.extraction_signals,
         headers=fp.headers,
-        path=path[:400],
+        # The path contains the canary token. Storing it would put the secret
+        # that identifies this decoy into the database the decoy exists to
+        # protect.
+        path=(path or "").replace(token, "<token>")[:400],
         method=method.upper()[:8],
         tarpit_ms=delay,
     )

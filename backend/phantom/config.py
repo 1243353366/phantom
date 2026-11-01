@@ -58,6 +58,17 @@ class Settings:
     tarpit_ms_max: int = field(
         default_factory=lambda: int(os.environ.get("PHANTOM_TARPIT_MS_MAX", "0"))
     )
+    #: A canary URL is public by design, so anything that can be fetched can be
+    #: fetched repeatedly. Without a budget, the most sensitive table in the
+    #: system grows at whatever rate a stranger chooses.
+    canary_max_observations_per_token: int = field(
+        default_factory=lambda: int(
+            os.environ.get("PHANTOM_CANARY_MAX_OBSERVATIONS_PER_TOKEN", "500")
+        )
+    )
+    canary_max_per_hour_per_token: int = field(
+        default_factory=lambda: int(os.environ.get("PHANTOM_CANARY_MAX_PER_HOUR", "60"))
+    )
     mirror_retention_days: int = field(
         default_factory=lambda: int(os.environ.get("PHANTOM_MIRROR_RETENTION_DAYS", "30"))
     )

@@ -225,6 +225,11 @@ See [`docs/shadow-trace.md`](docs/shadow-trace.md),
 [`docs/identity-separation.md`](docs/identity-separation.md) and
 [`docs/evidence-vault.md`](docs/evidence-vault.md).
 
+What the system refuses, what it cannot do, and where the risk that remains
+actually sits: [`docs/trust-boundaries.md`](docs/trust-boundaries.md). The ten
+findings from the adversarial review, with a pinning test for each:
+[`docs/reviews/2026-11-01-adversarial.md`](docs/reviews/2026-11-01-adversarial.md).
+
 ---
 
 ## Quickstart

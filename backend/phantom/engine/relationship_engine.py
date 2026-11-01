@@ -11,7 +11,7 @@ import hashlib
 import re
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from phantom.collector.headers import ParsedEmail
@@ -271,7 +271,7 @@ class RelationshipEngine:
             "dmarc": verdicts[0]["result"] if verdicts else "unknown",
         }
 
-    def _provider(self, org_key: str, entry, source_ref: str, ref: str,
+    def _provider(self, org_key: str, entry, message_ref: str, revealed_by: str,
                   observed_at: dt.datetime | None = None) -> None:
         """One message contributes at most one observation per provider.
 
@@ -289,14 +289,19 @@ class RelationshipEngine:
                 "domains": [entry.domain],
             },
         )
-        message_ref = source_ref.split(":provider:")[0]
+        # The evidence key is scoped to the message, not to the host that
+        # revealed it, so one email that resolves the same provider through both
+        # a pixel and a redirect contributes one observation rather than two.
+        # The message reference is passed in rather than recovered by splitting
+        # the source string: a delimiter that has to appear in the key to be
+        # stripped is a delimiter that silently does nothing when it does not.
         self._edge(
             "R-OBS-2", org_key, f"provider:{entry.name}",
             evidence_kind="registry_match",
             detail=f"{entry.domain} attributed to {entry.name} ({entry.category}) per {entry.source}",
             source_ref=f"{message_ref}:provider:{entry.name}",
             payload={"registry_domain": entry.domain, "category": entry.category,
-                     "message_ref": message_ref, "revealed_by": ref},
+                     "message_ref": message_ref, "revealed_by": revealed_by},
             base_confidence=0.85,
             observed_at=observed_at,
         )
@@ -345,29 +350,83 @@ class RelationshipEngine:
         # so this pass only annotates nodes; the hypothesis needs R-HYP-1 below.
 
         # R-HYP-1: one identity presented from more than one domain over time.
-        identity_domains: dict[str, set[str]] = defaultdict(set)
-        for node in self.session.scalars(select(Node).where(Node.kind == "organization")):
-            ident = node.attrs.get("identity") or ""
-            if ident:
-                identity_domains[ident].add(node.attrs.get("domain", ""))
-        for ident, domains in identity_domains.items():
-            domains = {d for d in domains if d}
-            if len(domains) < 2:
-                continue
-            ordered = sorted(domains)
-            for i, a in enumerate(ordered):
-                for b in ordered[i + 1:]:
-                    self._edge(
-                        "R-HYP-1", f"org:domain:{a}", f"org:domain:{b}",
-                        evidence_kind="identity_continuity",
-                        detail=f"Both domains presented the sender identity '{ident}'",
-                        source_ref=f"hyp1:{ident}:{a}:{b}",
-                        base_confidence=0.4,
-                    )
-                    created["hypothesized"] += 1
+        #
+        # A display name is a string the sender types. On its own it is the one
+        # field in a message an attacker controls completely, so linking two
+        # domains because they both called themselves "PayPal" produces an edge
+        # anyone can manufacture. That is worse than no edge: it spends the
+        # graph's credibility on a claim that costs nothing to forge.
+        #
+        # So the identity claim is treated as what it is, a claim, and it only
+        # becomes a hypothesis when an independent structural fact agrees with
+        # it: the two domains share mail infrastructure (a signing identity or a
+        # relay). Uncorroborated claims are not discarded, they are reported as
+        # negative space, which is where "I saw this and could not support it"
+        # belongs.
+        supported, unsupported = self._identity_claims()
+        for ident, a, b, shared in supported:
+            self._edge(
+                "R-HYP-1", f"org:domain:{a}", f"org:domain:{b}",
+                evidence_kind="identity_continuity",
+                detail=(
+                    f"Both domains presented the sender identity '{ident}' and "
+                    f"share {', '.join(sorted(shared))}. The display name alone "
+                    "would not be enough; the shared infrastructure is why this "
+                    "is recorded at all."
+                ),
+                source_ref=f"hyp1:{ident}:{a}:{b}",
+                base_confidence=0.4,
+            )
+            created["hypothesized"] += 1
 
         self.session.commit()
         return created
+
+    def _infrastructure_keys(self, org_key: str) -> set[str]:
+        """Infrastructure this organisation is structurally tied to.
+
+        Only links that exist independently of the identity label count: a
+        signing identity or a relay. Another domain saying the same name does
+        not corroborate itself.
+        """
+        keys: set[str] = set()
+        for edge in self.session.scalars(
+            select(Edge).where(or_(Edge.src_key == org_key, Edge.dst_key == org_key))
+        ):
+            other = edge.dst_key if edge.src_key == org_key else edge.src_key
+            node = self.session.scalar(select(Node).where(Node.key == other))
+            if node is not None and node.kind in {"dkim_identity", "mail_host"}:
+                keys.add(other)
+        return keys
+
+    def _identity_claims(self) -> tuple[list[tuple], list[tuple]]:
+        """Split identity-continuity claims into corroborated and merely asserted.
+
+        One identity presented from two domains is a claim. Whether it is
+        *supported* is a separate question, and answering it separately is the
+        difference between evidence and gossip.
+        """
+        identity_domains: dict[str, set[str]] = defaultdict(set)
+        for node in self.session.scalars(select(Node).where(Node.kind == "organization")):
+            ident = node.attrs.get("identity") or ""
+            domain = node.attrs.get("domain") or ""
+            if ident and domain:
+                identity_domains[ident].add(domain)
+
+        supported: list[tuple] = []
+        unsupported: list[tuple] = []
+        for ident, domains in identity_domains.items():
+            ordered = sorted(domains)
+            for i, a in enumerate(ordered):
+                for b in ordered[i + 1:]:
+                    shared = self._infrastructure_keys(
+                        f"org:domain:{a}"
+                    ) & self._infrastructure_keys(f"org:domain:{b}")
+                    if shared:
+                        supported.append((ident, a, b, shared))
+                    else:
+                        unsupported.append((ident, a, b))
+        return supported, unsupported
 
     def unresolved(self) -> dict:
         """Negative-space input: what the graph still cannot attribute."""
@@ -375,9 +434,14 @@ class RelationshipEngine:
         unknown = [d.label for d in domains if registry.resolve(d.label) is None]
         orgs = list(self.session.scalars(select(Node).where(Node.kind == "organization")))
         unlabeled = [o.key for o in orgs if not any(e.rule_id == "R-OBS-2" for e in self._edges_from(o.key))]
+        _supported, unsupported = self._identity_claims()
         return {
             "unattributed_domains": sorted(unknown),
             "organizations_without_attributed_provider": sorted(unlabeled),
+            "identity_claims_without_corroboration": [
+                f"{ident}: {a} and {b} claim the same name, nothing else agrees"
+                for ident, a, b in unsupported
+            ],
         }
 
     # ------------------------------------------------------------------

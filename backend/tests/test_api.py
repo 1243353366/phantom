@@ -30,9 +30,23 @@ def test_consent_gate_is_enforced_over_http(client):
 
 
 def test_enroll_and_revoke_over_http(client):
-    created = client.post(
+    # An unattributed permission flag is refused: it is indistinguishable from
+    # someone ticking a box on another person's behalf.
+    unattributed = client.post(
         "/api/consent/enroll",
         json={"gmail_address": "a@b.com", "consent_gmail": True},
+    )
+    assert unattributed.status_code == 400
+    assert "attest" in unattributed.json()["detail"]
+
+    created = client.post(
+        "/api/consent/enroll",
+        json={
+            "gmail_address": "a@b.com",
+            "consent_gmail": True,
+            "attested_by": "aadi",
+            "attestation": "I am this mailbox's owner",
+        },
     ).json()
     assert created["channels_authorised"] == ["email"]
     assert created["not_stored"] == ["phone_number", "work_email"]

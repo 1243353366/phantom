@@ -59,6 +59,12 @@ class AccessRequest(BaseModel):
 class GrantRequest(BaseModel):
     minutes: int = 15
     note: str = ""
+    #: Printed by `phantom approve <blob_id> --minutes N` on the host holding the
+    #: local key. Without it this endpoint cannot create a grant, which is the
+    #: whole point: requesting a read and authorising one are different acts and
+    #: must not be the same unauthenticated POST.
+    approval: str = ""
+    granted_by: str = ""
 
 
 class QuarantineRequest(BaseModel):
@@ -204,10 +210,26 @@ def grant_access(
     blob_id: str, body: GrantRequest, session: Session = Depends(db)
 ) -> dict:
     try:
-        grant = mirrorlock.grant(session, blob_id, minutes=body.minutes, note=body.note)
+        grant = mirrorlock.grant(
+            session,
+            blob_id,
+            minutes=body.minutes,
+            approval=body.approval,
+            granted_by=body.granted_by,
+            note=body.note,
+        )
+    except mirrorlock.NotAuthorised as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"grant_id": grant.id, "expires_at": grant.expires_at.isoformat()}
+    return {
+        "grant_id": grant.id,
+        "expires_at": grant.expires_at.isoformat(),
+        "granted_by": grant.granted_by,
+        "authorization": grant.authorization,
+    }
 
 
 @router.post("/mirrorlock/{blob_id}/revoke")

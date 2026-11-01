@@ -93,6 +93,25 @@ def _canonical(payload: dict) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
 
 
+#: Bumped when the canonical form changes. A stored row records the version that
+#: produced its digest, so verification can distinguish "this row was tampered
+#: with" from "this row was hashed under a form I no longer compute".
+FINGERPRINT_VERSION = 2
+
+#: Every field on the row that carries meaning. The first version hashed a subset
+#: (kind, subject_ref, outcome, occurred_at, origin_hmac, client_hash, asn,
+#: payload_digest) and left out detail, alt_explanations, client_family,
+#: client_tool, asn_org, subject_kind and credential_material_refused. That meant
+#: the sentence saying what happened could be rewritten without the chain noticing,
+#: which is the wrong half to leave unprotected: the narrative is the evidence.
+CANONICAL_FIELDS = (
+    "kind", "outcome", "occurred_at", "subject_ref", "subject_kind",
+    "origin_hmac", "client_hash", "client_family", "client_tool",
+    "asn", "asn_org", "detail", "alt_explanations", "payload_digest",
+    "credential_material_refused",
+)
+
+
 def event_fingerprint(payload: dict) -> str:
     """Content-addressed id for an observation.
 
@@ -100,6 +119,22 @@ def event_fingerprint(payload: dict) -> str:
     later edit to the stored row stops matching its own fingerprint.
     """
     return hashlib.sha256(_canonical(payload).encode("utf-8")).hexdigest()
+
+
+def canonical_payload(event) -> dict:
+    """The canonical form of a stored row, computed from the row as it is now.
+
+    Deliberately reads the database rather than a value passed in: verification
+    has to be able to disagree with what was written at the time.
+    """
+    payload = {}
+    for name in CANONICAL_FIELDS:
+        value = getattr(event, name, None)
+        if name == "occurred_at" and value is not None:
+            value = _aware(value).isoformat()
+        payload[name] = value
+    payload["fingerprint_version"] = getattr(event, "fingerprint_version", FINGERPRINT_VERSION)
+    return payload
 
 
 def _aware(value: dt.datetime | None) -> dt.datetime:
@@ -142,13 +177,21 @@ def record(
     fingerprint = event_fingerprint(
         {
             "kind": kind,
-            "subject_ref": subject_ref,
             "outcome": outcome,
             "occurred_at": at.isoformat(),
+            "subject_ref": subject_ref,
+            "subject_kind": subject_kind,
             "origin_hmac": origin_hmac,
             "client_hash": client_hash,
+            "client_family": client_family,
+            "client_tool": client_tool,
             "asn": asn,
+            "asn_org": asn_org,
+            "detail": clean_detail,
+            "alt_explanations": explanations,
             "payload_digest": payload_digest,
+            "credential_material_refused": refused,
+            "fingerprint_version": FINGERPRINT_VERSION,
         }
     )
 
@@ -173,6 +216,7 @@ def record(
         alt_explanations=explanations,
         payload_digest=payload_digest,
         credential_material_refused=refused,
+        fingerprint_version=FINGERPRINT_VERSION,
     )
     session.add(event)
     session.flush()

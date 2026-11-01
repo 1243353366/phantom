@@ -12,6 +12,18 @@ class EnrollRequest(BaseModel):
     consent_phone: bool = Field(default=False, description="Explicit opt-in for SMS")
     consent_work_email: bool = Field(default=False, description="Explicit opt-in for work_email")
     ttl_days: int | None = 365
+    attested_by: str = Field(
+        default="",
+        description=(
+            "Who is stating that this permission exists. Required, and recorded "
+            "verbatim. This is an attestation, not a verified identity: there is "
+            "no participant authentication in a local single-operator install."
+        ),
+    )
+    attestation: str = Field(
+        default="",
+        description="The words the person used. Required, and recorded verbatim.",
+    )
 
 
 class EnrollResponse(BaseModel):
