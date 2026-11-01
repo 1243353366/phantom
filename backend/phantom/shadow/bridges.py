@@ -131,6 +131,52 @@ def reject(
     return {"status": "rejected", "proposal_id": proposal.id}
 
 
+def reapply(session: Session) -> dict:
+    """Restore the edge for every already-confirmed decision after a rebuild.
+
+    This is not a second decision. The human judgement is already in the row,
+    with its note and its timestamp, so re-deriving the graph replays it instead
+    of losing it or re-asking.
+    """
+    restored = 0
+    skipped: list[str] = []
+    engine = RelationshipEngine(session)
+
+    for proposal in session.scalars(
+        select(BridgeProposal).where(BridgeProposal.status == "confirmed")
+    ):
+        left = session.scalar(select(Node).where(Node.key == proposal.surveillance_key))
+        right = session.scalar(select(Node).where(Node.key == proposal.adversarial_key))
+        if left is None or right is None:
+            # The observation behind one end no longer exists. Say so rather than
+            # resurrecting a node from a proposal.
+            skipped.append(proposal.id)
+            proposal.edge_id = None
+            continue
+
+        proposal.edge_id = None
+        edge = engine._edge(
+            RULE,
+            proposal.surveillance_key,
+            proposal.adversarial_key,
+            evidence_kind="confirmed_bridge",
+            detail=(
+                f"Bridge confirmed by {proposal.decided_by or 'owner'}. "
+                f"Stated shared observable: {proposal.rationale}"
+                + (f" Decision note: {proposal.decided_note}" if proposal.decided_note else "")
+            ),
+            source_ref=f"bridge:{proposal.id}",
+            payload={"rationale": proposal.rationale, "evidence_refs": proposal.evidence_refs},
+            base_confidence=0.35,
+            confirmed=True,
+        )
+        proposal.edge_id = edge.id
+        restored += 1
+
+    session.commit()
+    return {"restored": restored, "skipped": skipped}
+
+
 def serialize(proposal: BridgeProposal) -> dict:
     return {
         "id": proposal.id,

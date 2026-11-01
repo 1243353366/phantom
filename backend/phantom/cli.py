@@ -362,6 +362,37 @@ def cmd_vault_verify(args: argparse.Namespace) -> int:
     return 0 if result["ok"] else 1
 
 
+def cmd_rebuild_graph(args: argparse.Namespace) -> int:
+    """Re-derive every claim from the observations that produced it."""
+    from phantom import rebuild
+
+    init_db()
+    session = get_session()
+    result = rebuild.rebuild(session)
+    session.close()
+
+    before, after = result["before"], result["after"]
+    print(f"observations replayed: {result['observations_replayed']}")
+    print(f"nodes  {before['nodes']:>4} -> {after['nodes']}")
+    print(f"edges  {before['edges']:>4} -> {after['edges']}")
+    print(f"evidence rows      {after['evidence']}")
+    print(f"bridges restored:  {result['bridges_restored']['restored']}")
+    if result["bridges_restored"]["skipped"]:
+        print(f"  not restorable:  {len(result['bridges_restored']['skipped'])} "
+              f"(an observation behind the decision is gone)")
+    print(f"rules digest:      {result['rules_digest']}")
+    print(
+        "graph reproduced:  "
+        + ("yes, byte-identical claim set" if result["reproduced"] else "no, the claims changed")
+    )
+    if not result["reproduced"]:
+        print(
+            "  the rule set or the observation set changed since these edges were "
+            "written; the digest difference is the record of that"
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="phantom", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -415,6 +446,11 @@ def main(argv: list[str] | None = None) -> int:
 
     vault_verify = sub.add_parser("vault-verify", help="recompute the evidence hash chain")
     vault_verify.set_defaults(func=cmd_vault_verify)
+
+    rebuild_graph = sub.add_parser(
+        "rebuild-graph", help="re-derive the graph from stored observations"
+    )
+    rebuild_graph.set_defaults(func=cmd_rebuild_graph)
 
     args = parser.parse_args(argv)
     return args.func(args)

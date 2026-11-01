@@ -134,7 +134,24 @@ class RelationshipEngine:
     # ingestion
     # ------------------------------------------------------------------
     def ingest(self, mail: ParsedEmail, *, source_ref: str) -> dict:
-        """Fold one parsed message into the graph. Idempotent per source_ref."""
+        """Keep the observation, then derive the graph from it.
+
+        The two steps are separate on purpose. ``ingest`` is the only way in, and
+        it always writes the raw row before anything is concluded.
+        """
+        from phantom import observations
+
+        observations.store(
+            self.session,
+            source_kind=observations.EMAIL_METADATA,
+            source_ref=source_ref,
+            payload=observations.to_payload(mail),
+            observed_at=mail.sent_at or _now(),
+        )
+        return self.project(mail, source_ref=source_ref)
+
+    def project(self, mail: ParsedEmail, *, source_ref: str) -> dict:
+        """Derive nodes and edges from an observation. Safe to re-run."""
         at = mail.sent_at or _now()
         meta = {"message_ref": source_ref, "sent_at": at.isoformat()}
         org_key = None

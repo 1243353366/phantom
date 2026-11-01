@@ -32,6 +32,7 @@ out of scope by default.
 | `collector/` | Step 1. Without it there is nothing to map. |
 | `registry/` | Step 2. A wrong registry entry produces a wrong claim. |
 | `engine/` | Step 3. This is the product's whole credibility. |
+| `observations.py`, `rebuild.py` | Keeps step 3 re-derivable. Added at v0.2 as debt payment on an existing step, not as a new module. |
 | `engine/graph.py`, `frontend/` | Step 4. Uncertainty that is not visible is not there. |
 | `watchdog/` | Step 5. The only thing here that gets better with age. |
 
@@ -67,6 +68,29 @@ Not "later". Out.
 
 Each of these is individually reasonable and collectively fatal. A privacy tool that
 becomes a platform stops being auditable by the one person whose data it holds.
+
+## Decision record: the five passive telemetry signals
+
+Proposed: `jitter`, `banner`, `headless`, `html`, `origin`. Assessed and **declined
+for now**, individually, because they are not the same kind of request.
+
+| Signal | Assessment | Decision |
+| --- | --- | --- |
+| **HTML** | Already built. `collector/pixels.py` extracts images, anchors and redirect parameters; `R-OBS-1` and `R-OBS-4` already consume them. | Nothing to add. |
+| **Jitter** | Derived from timestamps Layer 3 already stores at the decoy endpoint. Not new collection, but "this looked automated" is a new **claim**, and claims are nouns. | Deferred. |
+| **Headless** | A derivation over `client_hash` and `client_family`, which are already recorded. Also the most dangerous of the five: every headless signal is a fingerprint, and the project's own line forbids fingerprinting that singles out individuals. | Deferred, last in any queue. |
+| **Origin / Referer** | Genuinely new. Request headers are observable at the decoy endpoint and are not collected today. Small, and the only one of the five that would be nearly free. | Deferred. First in line if Layer 3 is ever unfrozen. |
+| **Banner** | Reading a service banner means connecting to that service. For hosts you do not own, that is the scanning the restrictions forbid, and it is exactly the line between passive intelligence and active countermeasures. Legitimate only for infrastructure you operate, where you already know the answer. | Declined, not deferred. |
+
+One correction worth keeping: `Origin` and `Referer` are different headers, and
+neither is trustworthy. `Origin` is set by browsers on CORS and non-GET requests;
+`Referer` is ambient, routinely stripped, and trivially forged by anything that is
+not a browser. Either one is a self-asserted claim by the requester, so on the day
+this is built it lands as `observed` with a caveat that says so, and it must never
+be the sole support for a cross-layer bridge.
+
+Reconsideration gate: all five stay frozen until the v1.0 test below passes, and
+then each one still has to displace something already in the "kept" list.
 
 ## The freeze rule
 

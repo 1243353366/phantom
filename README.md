@@ -239,6 +239,7 @@ phantom demo          # email graph, negative space, self-audit
 phantom mirror-demo   # counter-observation graph
 phantom shadow-demo   # layer 3: decoys, refusals, quarantine, hash chain
 phantom vault-verify  # recompute the evidence chain
+phantom rebuild-graph # throw away every claim and re-derive it from observations
 ```
 
 `phantom demo` ingests `samples/*.eml`, builds the graph, runs the negative-space
@@ -357,6 +358,7 @@ See [`SECURITY.md`](SECURITY.md) and [`docs/threat-model.md`](docs/threat-model.
 | [`docs/consent.md`](docs/consent.md) | The consent flow, field by field |
 | [`docs/counter-observation.md`](docs/counter-observation.md) | Canaries, the asymmetry, and the passive-only line |
 | [`docs/scope.md`](docs/scope.md) | The one product, the frozen list, and the freeze rule |
+| [`docs/observations.md`](docs/observations.md) | Raw observations kept apart from derived claims, and rebuilding |
 | [`docs/shadow-trace.md`](docs/shadow-trace.md) | Layer 3: what gets recorded and what it may never say |
 | [`docs/identity-separation.md`](docs/identity-separation.md) | Why the layers cannot merge, enforced in code |
 | [`docs/evidence-vault.md`](docs/evidence-vault.md) | The hash chain, and what it cannot prove |

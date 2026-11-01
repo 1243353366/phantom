@@ -33,6 +33,34 @@ def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+class RawObservation(Base):
+    """What was actually seen, kept apart from what we inferred from it.
+
+    The graph is a set of claims derived from these rows. The rows are the
+    evidence. Keeping them apart means a change to a classification rule, a
+    threshold or a correlation window can be re-run over history instead of
+    quietly leaving old conclusions in place.
+
+    Append-only by construction: nothing in the codebase updates this table, and
+    the hash makes an edit visible.
+    """
+
+    __tablename__ = "raw_observations"
+    __table_args__ = (
+        UniqueConstraint("source_ref", "payload_hash", name="uq_raw_observation"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    #: email_metadata for the mail path. Layer 3 uses its own sealed event table.
+    source_kind: Mapped[str] = mapped_column(String(32), index=True)
+    source_ref: Mapped[str] = mapped_column(String(320), index=True)
+    observed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    payload_hash: Mapped[str] = mapped_column(String(64), index=True)
+    ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Node(Base):
     """A thing in the graph: an organization, a domain, a provider, a mailbox."""
 
