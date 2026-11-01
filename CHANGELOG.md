@@ -1,0 +1,101 @@
+# Changelog
+
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning is
+pre-1.0 and the scope is frozen, so minor versions add a source or a guardrail
+and never a new direction.
+
+Nothing here is a service. There is no hosted version, and no release changes
+what the tool is allowed to collect: every entry is local, and every data source
+needs its own opt-in.
+
+*The 0.1.0 and 0.2.0 entries were written retrospectively on 2026-11-01, from the
+commit history. Later entries are written at the time.*
+
+## [Unreleased]
+
+### Added
+- **Attention budget** (`phantom attention`): counts the operator's own view
+  commands on this machine, measures the longest stretch of checking, and nudges
+  when a self-set budget is passed. It reads `attention.jsonl` and nothing else:
+  no screen time, no app usage, no other person. A guardrail, not a data source,
+  so it adds no node, edge or view to the graph.
+
+### Refused, in writing
+- Device and behavioural monitoring for "excessive use" or doomscrolling. The
+  only way to get that data is telemetry that observes behaviour, and a token that
+  labels a person's usage unhealthy is a clinical claim this evidence model cannot
+  support. Recorded in `docs/scope.md` with the two other refusals.
+
+## [0.3.0] - 2026-11-01
+
+### Added
+- **Own-account inventory**: the operator's own presence across platforms, as a
+  second observation source rather than a second store, so the rebuild invariant
+  covers it. Answers one question: which of my accounts already link to each
+  other, and what did the linking.
+- `phantom inventory-inspect` prints every field it would read and every field it
+  refuses, storing nothing. `inventory-import` checks platform consent before
+  opening the file. `inventory-report` shows the clusters.
+- Adapters for **Discord** and **Meta** exports. The refusal is a list and the
+  denial wins: messages, friends, followers, members, servers, channels, logins
+  and payment files are refused by name, and matching is done on the whole
+  relative path so a `messages/` directory is caught even when the filename looks
+  innocent. Display names are not read at all.
+- Two rules with the uncertainty split kept explicit: `R-INV-1` observed (the
+  export listed this identifier on this account) and `R-INV-2` correlated (two
+  accounts use the same handle string), each carrying its caveat in the graph.
+
+### Changed
+- `enroll` accepts `--platform`, so each platform has its own opt-in scope rather
+  than a blanket permission.
+- `observations.store` takes a reviewed field set per source, so adding the
+  inventory source did not loosen the guard on email metadata.
+
+## [0.2.0] - 2026-11-01
+
+### Fixed
+Nine of ten findings from the adversarial review, each pinned by a test:
+- Egress is HTTPS-only, port 443, no user-info, no IP literals, and the resolved
+  address must be public. The DNS rebinding window is narrowed and documented, not
+  claimed closed.
+- MirrorLock grants need a code derived from the local key, bound to blob and
+  duration, printed only by `phantom approve`. Requesting access and authorising
+  it are now different acts.
+- The evidence vault's canonical form covers all fifteen fields with a version, so
+  verification detects rewritten contents, not only chain edits and splices.
+- `R-HYP-1` requires shared mail infrastructure before linking two domains: a
+  display name is the one field a sender controls completely, and on its own it
+  now produces negative space rather than an edge.
+- Consent requires attribution and reports `attestation_is_verified_identity:
+  false`, because a single-operator install has no participant authentication.
+- Retention runs on service start; expired grants stop holding values.
+- Canary ingestion is budgeted per token and per hour, and an exhausted budget
+  stays invisible at the edge.
+- Observations store URLs without query values, keep parameter names only,
+  withhold IP literals, and drop the canary token from the recorded path.
+
+### Refused, in writing
+- Family and household mapping, and social platform ingestion including the
+  participant-authorization variant. Authorization scales per node; the data
+  arrives per edge, so a consenting person's graph records non-consenting others.
+
+### Added
+- `docs/trust-boundaries.md` and `docs/reviews/2026-11-01-adversarial.md` with a
+  pinning test named for each disposition.
+
+## [0.1.0] - 2026-10
+
+### Added
+- Email metadata graph with observed, correlated and hypothesized edges, every
+  edge carrying provenance and a caveat.
+- Negative space analysis: what the absence of a relationship implies, reported as
+  an observation about change rather than a conclusion.
+- Recursive self-audit of the tool's own egress, with a declared destination list.
+- Per-field revocable consent for Gmail, phone and work email, each separately
+  opt-in.
+- Two-tier Gmail OAuth, metadata only: no message bodies are downloaded or stored.
+- Passive counter-observation by canary token: requester origin, client stack and
+  timing, plus the infrastructure graph that follows. `RETALIATION_ENABLED = False`,
+  tarpitting capped at 2000ms.
+- ShadowTrace, MirrorLock and the append-only evidence vault, with strict identity
+  separation (`R-SHD-4`) between the surveillance and adversarial graphs.

@@ -30,3 +30,10 @@ frontend/.vite/
 .DS_Store
 .idea/
 .vscode/
+
+# Local scratch homes used by verification runs. State, never source.
+.verify-*/
+.diag-*/
+.att-*/
+.inv-*/
+.final-check/

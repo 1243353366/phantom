@@ -198,3 +198,79 @@ def test_the_inventory_rebuilds_from_raw_observations(session):
 
 def test_the_report_says_when_nothing_is_imported(session):
     assert report(session)["findings"] == []
+
+
+# --- Meta, the second platform ---------------------------------------------
+
+from phantom.inventory.adapters import MetaExport  # noqa: E402
+
+
+def _meta_export(tmp_path, *, profile=None, extra=None):
+    root = tmp_path / "meta-export"
+    inner = root / "personal_information" / "personal_information"
+    inner.mkdir(parents=True)
+    payload = {
+        "profile_v2": profile if profile is not None else {
+            "name": {"name": "Aadi Shankar"},
+            "emails": {"emails": ["aadi@example.com"]},
+            "phone_numbers": ["+15550100"],
+            "username": "aadi.s",
+        }
+    }
+    (inner / "personal_information.json").write_text(json.dumps(payload), encoding="utf-8")
+    for name in (extra or []):
+        (root / name).mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def test_meta_reads_identity_from_the_nested_export(tmp_path):
+    reading = MetaExport(_meta_export(tmp_path)).read()
+    kinds = sorted({f.kind for f in reading.facets})
+    assert kinds == ["email", "handle", "phone"]
+
+
+def test_meta_does_not_read_the_display_name(tmp_path):
+    reading = MetaExport(_meta_export(tmp_path)).read()
+    assert all("Aadi Shankar" not in f.value for f in reading.facets)
+
+
+def test_meta_refuses_the_followers_directory(tmp_path):
+    root = _meta_export(tmp_path, extra=["followers_and_following", "messages"])
+    reading = MetaExport(root).read()
+    refused = " ".join(r.item for r in reading.refusals)
+    assert "followers_and_following" in refused
+    assert "messages" in refused
+
+
+def test_meta_refuses_a_friends_key_inside_the_profile(tmp_path):
+    root = _meta_export(tmp_path, profile={
+        "username": "aadi.s",
+        "friends": ["someone-else"],
+        "emails": {"emails": ["aadi@example.com"]},
+    })
+    reading = MetaExport(root).read()
+    assert any("friends" in r.item for r in reading.refusals)
+    assert all(f.kind != "handle" or f.value == "aadi.s" for f in reading.facets)
+
+
+def test_two_platforms_stitch_through_a_shared_email(session):
+    """The point of the layer: two accounts, joined by something already published."""
+    from phantom.inventory import store
+    from phantom.inventory.facets import Facet, Reading
+
+    store.record(session, Reading(platform="discord", facets=[
+        Facet("handle", "aadi.s", "username"),
+        Facet("email", "aadi@example.com", "email"),
+    ]), source_ref="inventory:discord")
+    store.record(session, Reading(platform="meta", facets=[
+        Facet("handle", "aadishankar", "username"),
+        Facet("email", "aadi@example.com", "email"),
+    ]), source_ref="inventory:meta")
+    store.project(session)
+
+    result = report(session)
+    assert result["accounts"] == 2
+    # Different handles, so R-INV-2 does not fire: the email is what joins them.
+    assert result["clusters"][0]["stitchable"] is True
+    assert result["clusters"][0]["joined_by"] == []
+    assert result["findings"]

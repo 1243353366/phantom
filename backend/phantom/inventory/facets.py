@@ -21,9 +21,12 @@ ALLOWED_KEYS: dict[str, str] = {
     "user_name": "handle",
     "handle": "handle",
     "email": "email",
+    "emails": "email",
     "email_address": "email",
+    "email_addresses": "email",
     "phone": "phone",
     "phone_number": "phone",
+    "phone_numbers": "phone",
     "id": "account_id",
     "user_id": "account_id",
 }

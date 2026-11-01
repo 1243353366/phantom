@@ -146,6 +146,24 @@ def cmd_enroll(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_attention(args: argparse.Namespace) -> int:
+    from phantom import attention
+
+    if args.checks_per_day is not None or args.continuous_minutes is not None:
+        attention.set_budget(
+            checks_per_day=args.checks_per_day,
+            continuous_minutes=args.continuous_minutes,
+        )
+    print(json.dumps(attention.summary(), indent=2))
+    return 0
+
+
+def _platforms() -> list[str]:
+    from phantom.inventory.adapters import ADAPTERS
+
+    return list(ADAPTERS)
+
+
 def cmd_inventory_inspect(args: argparse.Namespace) -> int:
     from phantom.inventory.adapters import ADAPTERS
 
@@ -582,19 +600,26 @@ def main(argv: list[str] | None = None) -> int:
         help="show what an account export would be read for, storing nothing",
     )
     inspect.add_argument("path", help="the export file, or the unzipped package")
-    inspect.add_argument("--platform", default="discord", choices=["discord"])
+    inspect.add_argument("--platform", default="discord", choices=sorted(_platforms()))
     inspect.set_defaults(func=cmd_inventory_inspect)
 
     inv_import = sub.add_parser(
         "inventory-import", help="read your own account export into the inventory"
     )
     inv_import.add_argument("path")
-    inv_import.add_argument("--platform", default="discord", choices=["discord"])
+    inv_import.add_argument("--platform", default="discord", choices=sorted(_platforms()))
     inv_import.set_defaults(func=cmd_inventory_import)
 
     sub.add_parser(
         "inventory-report", help="what your own accounts already link together"
     ).set_defaults(func=cmd_inventory_report)
+
+    attention_cmd = sub.add_parser(
+        "attention", help="how much this tool is drawing on you today"
+    )
+    attention_cmd.add_argument("--checks-per-day", type=int, dest="checks_per_day")
+    attention_cmd.add_argument("--continuous-minutes", type=int, dest="continuous_minutes")
+    attention_cmd.set_defaults(func=cmd_attention)
 
     canary = sub.add_parser("canary", help="mint a canary token and print its URL")
     canary.add_argument("--label", required=True, help="where this canary is placed")
@@ -635,6 +660,17 @@ def main(argv: list[str] | None = None) -> int:
     rebuild_graph.set_defaults(func=cmd_rebuild_graph)
 
     args = parser.parse_args(argv)
+
+    # The tool audits its own draw, silently and before dispatch. Only commands
+    # on the allowlist can be recorded: attention.record refuses anything else.
+    from phantom import attention
+
+    if args.command in attention.SURVEILLANCE_VIEWS:
+        try:
+            attention.record(args.command)
+        except (ValueError, OSError):
+            pass
+
     return args.func(args)
 
 

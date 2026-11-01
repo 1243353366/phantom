@@ -225,8 +225,10 @@ See [`docs/shadow-trace.md`](docs/shadow-trace.md),
 [`docs/identity-separation.md`](docs/identity-separation.md) and
 [`docs/evidence-vault.md`](docs/evidence-vault.md).
 
-Your own accounts across platforms, and what already links them:
-[`docs/own-account-inventory.md`](docs/own-account-inventory.md).
+Your own accounts across platforms (Discord, Meta), and what already links them:
+[`docs/own-account-inventory.md`](docs/own-account-inventory.md). What this tool
+does to *your* attention, and why it refuses to measure anything else:
+[`docs/attention-budget.md`](docs/attention-budget.md).
 
 What the system refuses, what it cannot do, and where the risk that remains
 actually sits: [`docs/trust-boundaries.md`](docs/trust-boundaries.md). The ten

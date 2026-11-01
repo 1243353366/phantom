@@ -222,3 +222,38 @@ relationship data about other people. The inventory reads one account per export
 the operator's. A participant-authorization model is still refused for the reason
 recorded above, and this layer does not reopen it, because nothing here describes
 anyone else.
+
+## Behavioural and device monitoring for "excessive use"
+
+Requested as an anti-doomscrolling safeguard. Refused, with a smaller thing built
+instead.
+
+The buildable version needs device telemetry: screen time, app usage, session
+length, scroll behaviour. Three problems, in ascending order of seriousness.
+
+**It cannot be scoped once it exists.** An integration that reports screen time
+reports which apps, for how long, at what hour, and then which pages. "Only usage
+counts" describes an intention, not a property of the pipe.
+
+**"This is excessive" is a clinical claim.** The whole evidence model separates
+what was observed from what was concluded and marks the gap. A threshold invented
+in a config file, printed back as a health verdict, is precisely the unearned
+claim `docs/trust-boundaries.md` prevents.
+
+**"Safeguard people's health" names people who are not the operator.** Monitoring
+a relative's usage is the family refusal wearing a wellness hat. Same answer.
+
+### What was built instead
+
+`phantom attention` counts the operator's *own* commands on this console, measures
+the longest stretch of checking, and nudges past a self-set budget. It reads its
+own log and refuses every other input: the allowlist in `attention.record` means
+the log cannot hold a value it was not designed for.
+
+This is the honest version of the request, because the failure the tool can
+actually cause is its owner refreshing a surveillance dashboard. See
+`docs/attention-budget.md`.
+
+**Freeze-rule note:** no displacement is recorded, because a guardrail is not a
+noun. It adds no node, edge, data source or view: it counts existing commands and
+writes one local file.

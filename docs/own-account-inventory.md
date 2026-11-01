@@ -84,11 +84,15 @@ who they are.
 
 ## Platforms
 
-One adapter, on purpose. Each export format is a claim about someone else's file
-layout, and a parser that claims to handle all of them would silently misread
-whichever one changed. `discord` is implemented; a second platform is one class in
-`ADAPTERS` plus a fixture, and the correlation core already handles the pair.
+Two adapters: `discord` and `meta`. Each is one class in `ADAPTERS` plus a
+fixture, on purpose: an export format is a claim about someone else's file layout,
+and a parser that claims to handle all of them would silently misread whichever
+one changed.
 
-Meta is the obvious second: it carries the widest identity surface of the four,
-including the Instagram link, which is exactly the cross-platform overlap this
-layer exists to report.
+Meta's export buries four useful fields in a large tree of everything else, so its
+adapter walks only the containers named in `META_CONTAINER_KEYS`, to a fixed depth,
+and reports every other top-level directory without opening it.
+
+Adding a third is a class and a fixture. The correlation core already handles any
+number of platforms: two accounts sharing an email land in one cluster, and a
+reused handle raises `R-INV-2`.
