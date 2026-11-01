@@ -32,6 +32,10 @@ from phantom.models import RawObservation
 from phantom.redaction import redact_ips, redact_params, safe_url
 
 EMAIL_METADATA = "email_metadata"
+
+#: Account exports the operator downloaded themselves. A second source, kept in
+#: the same raw store so one rebuild covers both.
+ACCOUNT_INVENTORY = "account_inventory"
 SCHEMA_VERSION = 1
 
 #: The complete set of keys a stored email observation may have. If a future
@@ -140,9 +144,16 @@ def store(
     source_ref: str,
     payload: dict,
     observed_at: dt.datetime | None = None,
+    allowed: set[str] | None = None,
 ) -> RawObservation:
-    """Append an observation. Idempotent for the same source and content."""
-    unknown = set(payload) - PAYLOAD_KEYS
+    """Append an observation. Idempotent for the same source and content.
+
+    ``allowed`` selects the reviewed field set for a non-email source. The guard
+    exists so a new field cannot be added without deciding whether it can carry
+    content, and adding a second source should not mean relaxing that for the
+    first.
+    """
+    unknown = set(payload) - (allowed or PAYLOAD_KEYS)
     if unknown:
         raise ValueError(
             f"refusing to store unexpected observation fields: {sorted(unknown)}. "

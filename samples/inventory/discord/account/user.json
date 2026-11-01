@@ -1,0 +1,12 @@
+{
+  "id": "100000000000000001",
+  "username": "aadi.s",
+  "global_name": "Aadi",
+  "email": "aadi@example.com",
+  "phone": "+15550100",
+  "verified": true,
+  "friends": [
+    {"username": "someone.else", "nickname": "not read"}
+  ],
+  "notes": "this file is synthetic; the denied keys exist to prove they are refused"
+}

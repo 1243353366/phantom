@@ -87,6 +87,16 @@ class Rule:
     requires_confirmation: bool = False
 
 
+INVENTORY_CAVEAT = (
+    "Derived from an export the operator downloaded about their own account. "
+    "Nothing in this layer describes another person."
+)
+
+HANDLE_CAVEAT = (
+    "The same handle string is not a verified identity. Anyone may reuse a "
+    "handle, and a person may use variants this rule does not link."
+)
+
 RULES: dict[str, Rule] = {
     r.id: r
     for r in [
@@ -103,6 +113,12 @@ RULES: dict[str, Rule] = {
         Rule("R-COR-1", CORRELATED, "shares_infrastructure_with",
              "Recurring overlap on the same provider across independent messages.",
              SHARED_INFRA_CAVEAT),
+        Rule("R-INV-1", OBSERVED, "uses_identifier",
+             "The operator's own export lists this identifier on this account.",
+             INVENTORY_CAVEAT),
+        Rule("R-INV-2", CORRELATED, "shares_handle",
+             "Two of the operator's accounts use the same handle string.",
+             HANDLE_CAVEAT),
         Rule("R-HYP-1", HYPOTHESIZED, "possible_identity_overlap",
              "Different sender domains present the same identity and infrastructure pattern.",
              CONTINUITY_CAVEAT),

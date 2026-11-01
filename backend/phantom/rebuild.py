@@ -85,6 +85,12 @@ def rebuild(session: Session) -> dict:
     # per-observation one. Rebuilding without it silently loses every
     # correlated and hypothesized edge, which is how this omission was found.
     correlated = engine.correlate()
+
+    # Own-account inventory is replayed from its own observation source, so an
+    # inventory claim is re-derived like any other rather than restored.
+    from phantom.inventory import store as inventory_store
+
+    inventory = inventory_store.project(session)
     session.commit()
 
     # Four derivation sources, in order, and the list is the pipeline. Two of them
@@ -102,6 +108,7 @@ def rebuild(session: Session) -> dict:
     return {
         "observations_replayed": len(stored),
         "correlation_passes": correlated,
+        "inventory": inventory,
         "counter_edges": mirror.get("edges", 0),
         "layer3_edges": shadow.get("recurrence_edges", 0) + shadow.get("co_occurrence_edges", 0),
         "bridges_restored": restored,

@@ -49,6 +49,7 @@ class ConsentService:
         consent_gmail: bool = False,
         consent_phone: bool = False,
         consent_work_email: bool = False,
+        platforms: list[str] | None = None,
         purpose: str = PURPOSE,
         ttl_days: int | None = 365,
         attested_by: str = "",
@@ -73,7 +74,9 @@ class ConsentService:
                     "Nothing was stored. Each contact field needs its own opt-in."
                 )
 
-        if not any((gmail_address, phone_number, work_email)):
+        platform_scope = sorted({p.strip().lower() for p in (platforms or []) if p.strip()})
+
+        if not any((gmail_address, phone_number, work_email)) and not platform_scope:
             raise ConsentError("No contact details were supplied.")
 
         # Consent here is an attestation by the operator, and the record says so
@@ -106,6 +109,7 @@ class ConsentService:
                     "gmail_address": bool(gmail_address),
                     "phone_number": bool(phone_number),
                     "work_email": bool(work_email),
+                    "platforms": platform_scope,
                 },
                 "purpose": purpose,
                 "policy_version": POLICY_VERSION,
@@ -117,7 +121,13 @@ class ConsentService:
 
         record = ConsentRecord(
             subject_token=crypto.hmac_hex(
-                (gmail_address or phone_number or work_email or "").strip().lower(),
+                (
+                    gmail_address
+                    or phone_number
+                    or work_email
+                    or ",".join(platform_scope)
+                    or ""
+                ).strip().lower(),
                 domain="subject",
             ),
             gmail_address=crypto.encrypt(gmail_address.strip().lower()) if gmail_address else None,
@@ -135,6 +145,9 @@ class ConsentService:
                     )
                     if flag
                 ],
+                # Each platform is its own opt-in, so an import has something
+                # specific to check rather than a blanket permission.
+                "platforms": platform_scope,
             },
             purpose=purpose,
             policy_version=POLICY_VERSION,
@@ -148,6 +161,26 @@ class ConsentService:
         self.session.add(record)
         self.session.commit()
         return record
+
+    def platforms_authorised(self) -> set[str]:
+        """Platforms the operator has explicitly opted in, across active grants."""
+        authorised: set[str] = set()
+        for record in self.active():
+            for platform in (record.scopes or {}).get("platforms", []):
+                authorised.add(platform)
+        return authorised
+
+    def require_platform(self, platform: str) -> None:
+        """Refuse an import unless that platform was opted in on its own."""
+        platform = (platform or "").strip().lower()
+        if platform in self.platforms_authorised():
+            return
+        raise ConsentError(
+            f"no active consent covers '{platform}'. Each platform needs its own "
+            "opt-in before its export is read. Run:\n"
+            f"  phantom enroll --platform {platform} --attested-by <you> "
+            f"--attestation '<why>'"
+        )
 
     def clear_expired(self) -> int:
         """Drop the stored values for every expired grant.

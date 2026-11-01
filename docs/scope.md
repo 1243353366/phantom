@@ -197,3 +197,28 @@ identity overlaps an observer could exploit to link accounts together. This maps
 the operator's exposure, uses only the operator's own accounts, and records no
 one else. Different question, same layer of the graph: how does *my* identity
 interact with the platforms, rather than who is connected to whom.
+
+## Displacement: the own-account inventory (approved 2026-11-01)
+
+The freeze rule says a new noun has to displace something already on the list, in
+writing, before code. This is that record.
+
+**Added to the core loop:** `inventory/`, the operator's own cross-platform
+identity surface. It is core because it answers an exposure question with the same
+graph, the same provenance requirement and the same uncertainty classes as
+everything else. It is a second observation source, not a second product: it
+reuses the raw/derived split, so the rebuild invariant covers it.
+
+**Displaced, deferred until the inventory loop is finished:**
+
+- Signed exports, so a third party can verify a report without the database.
+- The local ASN table updater.
+
+Both are real and neither is dropped. They are the payment for the new noun, and
+they return to the roadmap when the second platform adapter lands.
+
+**Explicitly not displaced:** the core loop, the frozen list, and the refusal of
+relationship data about other people. The inventory reads one account per export:
+the operator's. A participant-authorization model is still refused for the reason
+recorded above, and this layer does not reopen it, because nothing here describes
+anyone else.

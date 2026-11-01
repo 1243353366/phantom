@@ -127,6 +127,7 @@ def cmd_enroll(args: argparse.Namespace) -> int:
     session = get_session()
     try:
         record = ConsentService(session).enroll(
+            platforms=args.platforms,
             gmail_address=args.gmail,
             phone_number=args.phone,
             work_email=args.work_email,
@@ -142,6 +143,82 @@ def cmd_enroll(args: argparse.Namespace) -> int:
         return 2
     print(json.dumps(ConsentService(session).view(record), indent=2))
     session.close()
+    return 0
+
+
+def cmd_inventory_inspect(args: argparse.Namespace) -> int:
+    from phantom.inventory.adapters import ADAPTERS
+
+    reading = ADAPTERS[args.platform](args.path).read()
+    print(
+        json.dumps(
+            {
+                "platform": reading.platform,
+                "would_read": [
+                    {"facet": f.kind, "field": f.source_field, "value_hint": "withheld"}
+                    for f in reading.facets
+                ],
+                "files_read": reading.files_read,
+                "refused": [{"item": r.item, "reason": r.reason} for r in reading.refusals],
+                "note": "Nothing was stored. Run inventory-import to record it.",
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_inventory_import(args: argparse.Namespace) -> int:
+    from phantom.auth.consent import ConsentError, ConsentService
+    from phantom.inventory import store
+    from phantom.inventory.adapters import ADAPTERS
+
+    init_db()
+    session = get_session()
+    try:
+        # Consent is checked before the file is opened, so an unauthorised
+        # platform never has its export parsed at all.
+        try:
+            ConsentService(session).require_platform(args.platform)
+        except ConsentError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
+        reading = ADAPTERS[args.platform](args.path).read()
+        row = store.record(session, reading)
+        session.commit()
+
+        projected = store.project(session)
+        session.commit()
+        print(
+            json.dumps(
+                {
+                    "stored": row.source_ref,
+                    "facets": [f.kind for f in reading.facets],
+                    "refused": [r.item for r in reading.refusals],
+                    "graph": projected,
+                    "note": (
+                        "Identifiers are stored as keyed digests. Run "
+                        "inventory-report to see what they link."
+                    ),
+                },
+                indent=2,
+            )
+        )
+    finally:
+        session.close()
+    return 0
+
+
+def cmd_inventory_report(args: argparse.Namespace) -> int:
+    from phantom.inventory.report import build
+
+    init_db()
+    session = get_session()
+    try:
+        print(json.dumps(build(session), indent=2))
+    finally:
+        session.close()
     return 0
 
 
@@ -485,6 +562,10 @@ def main(argv: list[str] | None = None) -> int:
     enroll.add_argument("--consent-gmail", action="store_true")
     enroll.add_argument("--consent-phone", action="store_true")
     enroll.add_argument("--consent-work-email", action="store_true")
+    enroll.add_argument(
+        "--platform", action="append", default=[], dest="platforms",
+        help="platform whose export you authorise reading (repeatable)",
+    )
     enroll.add_argument("--ttl-days", type=int, default=365)
     enroll.add_argument(
         "--attested-by", dest="attested_by", required=True,
@@ -495,6 +576,25 @@ def main(argv: list[str] | None = None) -> int:
         help="the words the person used, recorded verbatim",
     )
     enroll.set_defaults(func=cmd_enroll)
+
+    inspect = sub.add_parser(
+        "inventory-inspect",
+        help="show what an account export would be read for, storing nothing",
+    )
+    inspect.add_argument("path", help="the export file, or the unzipped package")
+    inspect.add_argument("--platform", default="discord", choices=["discord"])
+    inspect.set_defaults(func=cmd_inventory_inspect)
+
+    inv_import = sub.add_parser(
+        "inventory-import", help="read your own account export into the inventory"
+    )
+    inv_import.add_argument("path")
+    inv_import.add_argument("--platform", default="discord", choices=["discord"])
+    inv_import.set_defaults(func=cmd_inventory_import)
+
+    sub.add_parser(
+        "inventory-report", help="what your own accounts already link together"
+    ).set_defaults(func=cmd_inventory_report)
 
     canary = sub.add_parser("canary", help="mint a canary token and print its URL")
     canary.add_argument("--label", required=True, help="where this canary is placed")
