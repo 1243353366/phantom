@@ -402,3 +402,7 @@ See [`SECURITY.md`](SECURITY.md) and [`docs/threat-model.md`](docs/threat-model.
 AGPL-3.0. If you run a modified PHANTOM as a network service, its users are
 entitled to the source. A privacy tool that hides its own workings is a
 contradiction.
+
+---
+
+Thanks for reading. More of my work: [github.com/1243353366](https://github.com/1243353366).
