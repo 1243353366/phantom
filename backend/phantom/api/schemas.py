@@ -38,12 +38,25 @@ class EnrollResponse(BaseModel):
     how_to_revoke: str
 
 
+#: A full RFC822 message with attachments is large, and a body with no ceiling is a
+#: memory exhaustion bug. These are generous and they are refusals, not truncations:
+#: a truncated message would parse into a graph that quietly omits evidence.
+MAX_EMAIL_CHARS = 20 * 1024 * 1024
+MAX_CONTACTS_CSV_CHARS = 8 * 1024 * 1024
+
+
 class IngestRequest(BaseModel):
-    raw_email: str = Field(description="Full RFC822 message as text")
+    raw_email: str = Field(
+        max_length=MAX_EMAIL_CHARS,
+        description="Full RFC822 message as text",
+    )
     source_ref: str = Field(default="api-upload", description="Your own label for this message")
 
 
 class ExposureRequest(BaseModel):
-    contacts_csv: str = Field(description="CSV exported by you. Stays local.")
+    contacts_csv: str = Field(
+        max_length=MAX_CONTACTS_CSV_CHARS,
+        description="CSV exported by you. Stays local.",
+    )
     exclude_domains: list[str] = Field(default_factory=list)
     exclude_categories: list[str] = Field(default_factory=list)

@@ -11,6 +11,30 @@ needs its own opt-in.
 *The 0.1.0 and 0.2.0 entries were written retrospectively on 2026-11-01, from the
 commit history. Later entries are written at the time.*
 
+## 2026-11-05 - hardening round
+
+Four defects found by review, none of them visible in the test suite that existed.
+
+- **The database was world-readable.** SQLite creates its files `0644`, and this one
+  holds who contacted whom. The key file was already `0600`; the data was not. The
+  database and its `-wal`/`-shm` sidecars are now tightened on connect, because the
+  sidecars appear after any check performed at startup.
+- **Outbound reads had no ceiling.** An allowlisted hostname is a promise about
+  identity, not about size: one endpoint streaming without end was a memory
+  exhaustion bug that the allowlist made look trustworthy. Reads now stop at 8 MiB,
+  raise `ResponseTooLarge`, and the stop itself is recorded.
+- **The audit log grew without limit.** Evidence with no ceiling is a disk-filling
+  bug that anyone able to trigger a request can reach. It rotates at 2 MiB, keeps one
+  generation, and drops the oldest entries: a burst large enough to rotate twice is
+  the alert.
+- **Request bodies had no upper bound.** `raw_email` and `contacts_csv` are now
+  bounded at 20 MiB and 8 MiB and are refused, not truncated. A truncated message
+  parses into a graph that quietly omits evidence, which is worse than an error.
+
+What this round did not do: no dynamic exploitation, no fuzzing, no dependency CVE
+scan, and no multi-process race testing. The DNS rebinding window described in
+`egress.py` is still open and still named there.
+
 ## [0.4.0] - 2026-11-01 — scope frozen
 
 No new surface. Boundary audit of account stitching and the attention counter,

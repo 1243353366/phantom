@@ -348,6 +348,11 @@ configure it), NetworkX, React + Vite + Cytoscape.js, Docker.
 - **No contact uploads.** Contact analysis runs locally on a file you exported.
 - **Fail closed.** Unlisted hosts raise `EgressBlocked` before a byte leaves;
   malformed data is refused rather than guessed at.
+- **Bounded on purpose.** Outbound reads stop at 8 MiB, request bodies at 20 MiB and
+  8 MiB, and the audit log rotates at 2 MiB. Every one of those is a refusal rather
+  than a truncation: a cut-off message would parse into a graph that quietly omits
+  evidence. The database and its `-wal`/`-shm` sidecars are `0600`, because a file
+  holding who contacted whom should not be readable by other accounts on the machine.
 - **Provenance required.** The engine will not write an edge without at least one
   evidence row. A test asserts it.
 - **Encryption at rest** for the little personal data PHANTOM holds, against a key

@@ -46,8 +46,23 @@ __all__ = [
 
 ALLOWLIST_PATH = Path(__file__).parent / "selfaudit" / "egress_allowlist.yaml"
 
+#: An allowlisted name is not a promise about how much it will send back. Without a
+#: ceiling, one endpoint that streams forever is a memory exhaustion bug, and the
+#: allowlist means the caller cannot even claim it was an untrusted host.
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+#: The audit log is evidence, but an unbounded evidence file is a disk-filling bug.
+#: At the cap it rotates to ``.1`` and keeps one generation: the oldest entries are
+#: the ones dropped, and a burst big enough to rotate twice is itself the alert.
+LOG_MAX_BYTES = 2 * 1024 * 1024
+
+
 class EgressBlocked(RuntimeError):
     """Raised when code tries to reach something the allowlist does not cover."""
+
+
+class ResponseTooLarge(EgressBlocked):
+    """The endpoint answered with more than the read ceiling allows."""
 
 
 def _load_allowlist() -> list[dict]:
@@ -103,6 +118,15 @@ def resolve_and_validate(host: str) -> list[str]:
     return addresses
 
 
+def _rotate_log() -> None:
+    """Keep the audit log bounded. One generation, oldest entries go first."""
+    try:
+        if settings.egress_log.exists() and settings.egress_log.stat().st_size >= LOG_MAX_BYTES:
+            settings.egress_log.replace(settings.egress_log.with_name(settings.egress_log.name + ".1"))
+    except OSError:
+        pass
+
+
 def _record(url: str, purpose: str, allowed: bool, reason: str = "") -> None:
     line = {
         "at": dt.datetime.now(dt.UTC).isoformat(),
@@ -115,6 +139,7 @@ def _record(url: str, purpose: str, allowed: bool, reason: str = "") -> None:
         line["reason"] = reason
     try:
         settings.egress_log.parent.mkdir(parents=True, exist_ok=True)
+        _rotate_log()
         with open(settings.egress_log, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(line) + "\n")
     except OSError:
@@ -164,6 +189,7 @@ def request(
     params: dict | None = None,
     data: dict | None = None,
     timeout: float = 10.0,
+    max_bytes: int = MAX_RESPONSE_BYTES,
 ) -> httpx.Response:
     """Make an allowlisted outbound request and record a sanitised entry for it."""
     try:
@@ -172,10 +198,41 @@ def request(
         _record(url, purpose, allowed=False, reason=str(exc))
         raise
     _record(url, purpose, allowed=True)
-    return httpx.request(
+    return _streamed(
+        method, url, headers=headers, params=params, data=data, timeout=timeout,
+        max_bytes=max_bytes,
+    )
+
+
+def _streamed(
+    method: str,
+    url: str,
+    *,
+    headers: dict | None,
+    params: dict | None,
+    data: dict | None,
+    timeout: float,
+    max_bytes: int,
+) -> httpx.Response:
+    """Read at most `max_bytes`, then refuse. The body is never fully buffered blind."""
+    chunks: list[bytes] = []
+    size = 0
+    with httpx.stream(
         method, url, headers=headers, params=params, data=data, timeout=timeout,
         follow_redirects=False, verify=True,
-    )
+    ) as response:
+        for chunk in response.iter_bytes():
+            size += len(chunk)
+            if size > max_bytes:
+                _record(url, "response.too_large", allowed=False, reason=f"more than {max_bytes} bytes")
+                raise ResponseTooLarge(f"{url} sent more than {max_bytes} bytes; read stopped")
+            chunks.append(chunk)
+        return httpx.Response(
+            response.status_code,
+            headers=response.headers,
+            content=b"".join(chunks),
+            request=response.request,
+        )
 
 
 def read_log() -> list[dict]:
