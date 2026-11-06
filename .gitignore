@@ -39,3 +39,6 @@ frontend/.vite/
 .final-check/
 .exp-*/
 .pos-*/
+
+# incremental build cache, machine specific
+*.tsbuildinfo
